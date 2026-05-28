@@ -22,6 +22,7 @@ COPY . .
 
 # Keep the container non-trading/research-only by default.
 # The code also enforces execution_enabled: false in config/config.yaml.
-VOLUME ["/app/data"]
+# Note: For persistent storage at /app/data, attach a Railway Volume
+# with mount path /app/data in the service settings dashboard.
 
 CMD ["python", "main.py", "--help"]
