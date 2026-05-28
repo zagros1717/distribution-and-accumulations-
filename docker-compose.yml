@@ -1,0 +1,42 @@
+services:
+  btc-research:
+    build: .
+    image: btc-research-machine:latest
+    container_name: btc-research-machine
+    working_dir: /app
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    environment:
+      PYTHONUNBUFFERED: "1"
+    command: ["python", "main.py", "--help"]
+
+  recorder:
+    build: .
+    image: btc-research-machine:latest
+    container_name: btc-research-recorder
+    working_dir: /app
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    environment:
+      PYTHONUNBUFFERED: "1"
+    command: ["python", "main.py", "record"]
+    restart: unless-stopped
+
+
+  dashboard:
+    build: .
+    image: btc-research-machine:latest
+    container_name: btc-research-dashboard
+    working_dir: /app
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DATA_ROOT: "/app/data"
+    ports:
+      - "8501:8501"
+    command: ["streamlit", "run", "src/dashboard/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    restart: unless-stopped

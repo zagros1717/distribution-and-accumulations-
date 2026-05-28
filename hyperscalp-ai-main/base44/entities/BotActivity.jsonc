@@ -1,0 +1,39 @@
+{
+  "name": "BotActivity",
+  "type": "object",
+  "properties": {
+    "activity_type": {
+      "type": "string",
+      "enum": [
+        "signal_found",
+        "signal_rejected",
+        "analysis_complete"
+      ],
+      "description": "Type of activity"
+    },
+    "coin": {
+      "type": "string",
+      "description": "Coin being analyzed"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "long",
+        "short"
+      ],
+      "description": "Signal direction if found"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why signal was found or rejected"
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Signal metrics (imbalance, RSI, etc)"
+    }
+  },
+  "required": [
+    "activity_type",
+    "coin"
+  ]
+}

@@ -1,0 +1,58 @@
+# Local full-stack dev: Postgres + backend + frontend.
+#   docker compose up --build
+# Then open http://localhost:3000  (API docs at http://localhost:8000/docs)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: btc
+      POSTGRES_PASSWORD: btc
+      POSTGRES_DB: btcflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U btc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://btc:btc@db:5432/btcflow
+      MOCK_MODE: "true"          # flip to "false" and add keys below to go live
+      RUN_ON_STARTUP: "true"
+      CORS_ORIGINS: "http://localhost:3000"
+      REFRESH_INTERVAL_MINUTES: "60"
+      # COINGLASS_API_KEY: ""
+      # CRYPTOQUANT_API_KEY: ""
+      # ARKHAM_API_KEY: ""
+      # KAIKO_API_KEY: ""
+      # SOSOVALUE_API_KEY: ""
+      # TELEGRAM_BOT_TOKEN: ""
+      # TELEGRAM_CHAT_ID: ""
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    environment:
+      # server-side rewrite target (browser calls /api/* → backend)
+      BACKEND_URL: "http://backend:8000"
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

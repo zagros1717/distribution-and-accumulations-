@@ -1,0 +1,48 @@
+{
+  "name": "TradeTape",
+  "type": "object",
+  "description": "Rolling per-coin trade tape collected from Hyperliquid WebSocket. One record per coin.",
+  "properties": {
+    "coin": {
+      "type": "string",
+      "description": "Coin symbol (e.g. BTC). One record per coin."
+    },
+    "trades": {
+      "type": "array",
+      "description": "Capped rolling list of recent aggressor trades. Newest last.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "number",
+            "description": "Timestamp ms"
+          },
+          "p": {
+            "type": "number",
+            "description": "Price"
+          },
+          "s": {
+            "type": "number",
+            "description": "Size in coin"
+          },
+          "b": {
+            "type": "boolean",
+            "description": "true=aggressor buy, false=aggressor sell"
+          }
+        }
+      }
+    },
+    "last_collected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the last collection burst finished"
+    },
+    "burst_trade_count": {
+      "type": "number",
+      "description": "Number of trades collected in the last burst (for monitoring)"
+    }
+  },
+  "required": [
+    "coin"
+  ]
+}

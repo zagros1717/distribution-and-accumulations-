@@ -1,0 +1,26 @@
+{
+  "name": "StrategyState",
+  "type": "object",
+  "description": "Rolling per-strategy performance state. Updated on every closed trade. Read by the bandit allocator to weight capital.",
+  "properties": {
+    "strategy": {
+      "type": "string",
+      "enum": ["range_mr", "trend_breakout", "liquidation_fade"]
+    },
+    "trades_total": { "type": "number", "default": 0 },
+    "trades_window": { "type": "number", "default": 0 },
+    "wins_window": { "type": "number", "default": 0 },
+    "pnl_window_usd": { "type": "number", "default": 0 },
+    "fees_window_usd": { "type": "number", "default": 0 },
+    "ret_window": {
+      "type": "array",
+      "description": "Rolling per-trade return (R-multiple). Capped at allocator.lookback_trades.",
+      "items": { "type": "number" }
+    },
+    "sharpe": { "type": "number", "default": 0 },
+    "kelly_fraction": { "type": "number", "default": 0 },
+    "weight": { "type": "number", "default": 0.33 },
+    "last_updated": { "type": "string", "format": "date-time" }
+  },
+  "required": ["strategy"]
+}

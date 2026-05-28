@@ -1,0 +1,148 @@
+# =============================================================================
+# BTC Research Machine — configuration
+# =============================================================================
+# This file controls every part of the pipeline. The hard rule of this project
+# is that `execution_enabled` MUST stay `false`. The code refuses to run any
+# trading path even if it is flipped to true.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Safety
+# -----------------------------------------------------------------------------
+safety:
+  execution_enabled: false       # MUST be false. Code raises if true.
+  allow_private_api: false       # No private exchange API access. Ever.
+  allow_withdrawals: false       # Defense in depth.
+
+# -----------------------------------------------------------------------------
+# Data source priority
+# -----------------------------------------------------------------------------
+sources:
+  primary:
+    adapter: bitfinex
+    symbol: tBTCUSD            # Bitfinex websocket symbol
+    canonical_symbol: BTCUSD
+    book_precision: R0         # Raw book (per-order updates)
+    book_length: "100"         # Bitfinex 'len' parameter (250 max for raw)
+    ws_url: "wss://api-pub.bitfinex.com/ws/2"
+  fallback:
+    adapter: coinbase
+    symbol: BTC-USD
+    canonical_symbol: BTC-USD
+    rest_snapshot_url: "https://api.exchange.coinbase.com/products/BTC-USD/book?level=3"
+    ws_url: "wss://ws-feed.exchange.coinbase.com"
+    channel: full              # L3 channel
+  failover:
+    max_reconnects_before_switch: 3
+    reconnect_backoff_seconds: [1, 2, 5, 10, 30]
+    heartbeat_timeout_seconds: 15
+
+# -----------------------------------------------------------------------------
+# Storage
+# -----------------------------------------------------------------------------
+storage:
+  root: "./data"
+  raw_format: parquet            # raw_messages.parquet per day
+  normalized_format: parquet     # book_events.parquet per day
+  snapshot_intervals_ms: [100, 1000]
+  duckdb_path: "./data/research.duckdb"
+  compression: zstd
+  rotate_files_every_minutes: 60 # rotate raw parquet hourly so partial-day files are usable
+
+# -----------------------------------------------------------------------------
+# Book reconstruction
+# -----------------------------------------------------------------------------
+book:
+  max_depth_tracked: 50          # levels each side
+  resync_on_crossed_book: true
+  resync_on_negative_size: true
+  invalid_event_quarantine_seconds: 5   # mark this window as corrupted
+
+# -----------------------------------------------------------------------------
+# Feature engineering
+# -----------------------------------------------------------------------------
+features:
+  intervals_ms: [1000]           # start with 1s. Add 100, 500 once stable.
+  depth_levels: [1, 5, 10]
+  large_order_threshold_btc: 5.0
+  rolling_windows_seconds: [1, 5, 10, 60]
+  realized_vol_windows_seconds: [10, 60]
+
+# -----------------------------------------------------------------------------
+# Label generation — cost-aware
+# -----------------------------------------------------------------------------
+labels:
+  horizons_seconds: [1, 5, 10, 30]
+  # Cost threshold expressed in basis points (1 bp = 0.0001).
+  # The threshold is applied as a ROUND TRIP: a trade pays the costs on
+  # entry AND on exit, so the move has to clear twice the one-way sum
+  # before a +/-1 label fires.
+  cost_components_bps:
+    taker_fee: 10                # 0.10% Bitfinex default taker
+    maker_fee: 2                 # 0.02% maker (rarely used here)
+    half_spread_buffer: 3        # rough half-spread for BTC/USD
+    slippage_buffer: 2           # extra cushion
+  # One-way sum:  taker_fee + half_spread_buffer + slippage_buffer = 10 + 3 + 2 = 15 bps
+  # Round trip:   2 * one-way                                       = 30 bps  <-- the actual threshold
+  # If you change these, src.labels.label_engine.compute_threshold_bps and
+  # the backtester's BacktestConfig must stay in lockstep — see
+  # tests/test_label_interval_isolation.py::test_threshold_matches_backtest_round_trip_costs
+
+# -----------------------------------------------------------------------------
+# XGBoost model
+# -----------------------------------------------------------------------------
+model:
+  framework: xgboost
+  objective: multi:softprob
+  num_class: 3                   # -1, 0, +1 remapped to {0,1,2}
+  params:
+    max_depth: 6
+    learning_rate: 0.05
+    n_estimators: 400
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 5
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    tree_method: hist
+    eval_metric: ["mlogloss", "merror"]
+  early_stopping_rounds: 25
+  walk_forward:
+    train_days: 10
+    validation_days: 1
+    step_days: 1
+    min_train_days: 3            # if dataset is small
+
+# -----------------------------------------------------------------------------
+# Backtester
+# -----------------------------------------------------------------------------
+backtest:
+  latency_ms: 250
+  taker_fee_bps: 10
+  maker_fee_bps: 2
+  slippage_bps: 2
+  min_confidence: 0.60
+  max_trades_per_day: 500
+  cooldown_seconds_after_trade: 2
+  position_size_btc: 0.01        # tiny notional — simulation only
+  starting_cash_usd: 100000.0
+
+# -----------------------------------------------------------------------------
+# Reports
+# -----------------------------------------------------------------------------
+reports:
+  output_dir: "./data/reports"
+  top_n_features: 30
+  reject_if:
+    pnl_after_costs_negative: true
+    max_drawdown_bps_above: 500
+    corrupted_book_pct_above: 5.0
+    works_on_only_one_day: true
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+logging:
+  level: INFO
+  json_logs: false
+  sink: "./data/run.log"

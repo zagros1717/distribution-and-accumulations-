@@ -1,0 +1,109 @@
+2026-05-20 18:38:01 | collector | INFO | collector scheduled: 1h every 7200s after 0s
+2026-05-20 18:38:01 | collector | INFO | collector scheduled: 4h every 14400s after 300s
+2026-05-20 18:38:01 | collector | INFO | collector scheduled: 1d every 86400s after 600s
+2026-05-20 18:38:01 | live | INFO | ==================================================
+2026-05-20 18:38:01 | live | INFO | اجرای زنجیره برای تایم‌فریم: 1h
+2026-05-20 18:38:01 | live | INFO | ==================================================
+2026-05-20 18:38:01 | data.merge | INFO | ساخت دیتاست برای تایم‌فریم 1h ...
+2026-05-20 18:38:01 | data.exchanges | INFO | دریافت کامل bitfinex | 1h | 40000 کندل از 2022-01-01 00:00:00+00:00 ...
+2026-05-20 18:38:01 | data.exchanges | INFO | Bitfinex REST backfill 1h via 1h | target=40000 source_limit=40000 since=2022-01-01 00:00:00+00:00
+2026-05-20 18:38:05 | data.exchanges | INFO | bitfinex 1h دریافت شد | rows=38405 | first=2022-01-01 00:00:00+00:00 | last=2026-05-20 18:00:00+00:00
+2026-05-20 18:38:05 | data.exchanges | INFO | دریافت کامل kraken | 1h | 500 کندل از 2026-04-29 22:38:05.345000+00:00 ...
+2026-05-20 18:38:09 | data.exchanges | INFO | kraken 1h دریافت شد | rows=500 | first=2026-04-29 23:00:00+00:00 | last=2026-05-20 18:00:00+00:00
+2026-05-20 18:38:09 | data.merge | INFO | صرافی‌های دریافت‌شده: ['bitfinex', 'kraken']
+2026-05-20 18:38:09 | data.merge | INFO | سری‌ی اجماعی: 38405 کندل (2022-01-01 00:00:00+00:00 تا 2026-05-20 18:00:00+00:00)
+2026-05-20 18:38:09 | data.macro | INFO | دریافت ماکرو: DXY (DX-Y.NYB)
+2026-05-20 18:38:10 | data.macro | INFO | دریافت ماکرو: VIX (^VIX)
+2026-05-20 18:38:10 | data.macro | INFO | دریافت ماکرو: GOLD (GC=F)
+2026-05-20 18:38:10 | data.macro | INFO | دریافت ماکرو: US10Y (^TNX)
+2026-05-20 18:38:11 | data.macro | INFO | دریافت ماکرو: SPX (^GSPC)
+2026-05-20 18:38:11 | data.merge | INFO | ماکرو چسبانده شد: ['DXY', 'VIX', 'GOLD', 'US10Y', 'SPX']
+2026-05-20 18:38:11 | regime | INFO | توزیع رژیم: {'neutral': 26916, 'expansion': 6257, 'recession': 5232} | source=rule_based_causal
+2026-05-20 18:38:11 | features | INFO | ساخت فیچر برای 1h ...
+2026-05-20 18:38:11 | features | INFO | ماکرو فقط context/regime است و از فیچرهای مدل حذف شد | macro_candidates=15
+2026-05-20 18:39:13 | features | INFO | label mode trade_outcome | 1h | class dist={0: 11959, 1: 13954, 2: 12467}
+2026-05-20 18:39:13 | features | INFO | تعداد فیچر: 37 | تعداد ردیف معتبر: 38195 | macro_used=0 | label=trade_outcome
+2026-05-20 18:39:13 | model | WARNING | مدل ذخیره‌شده‌ای برای 1h پیدا نشد.
+2026-05-20 18:39:13 | model | INFO | تقسیم زمانی با purge — train:26716  valid:5715  test:5728  embargo:12
+2026-05-20 18:39:15 | model | INFO | آموزش بدون class weighting؛ احتمال‌ها طبیعی‌تر ولی recall کلاس‌های کم‌تعداد ممکن است کمتر شود.
+2026-05-20 18:39:22 | model | INFO | دقت — valid: 0.416   test: 0.381   baseline_test: 0.344   lift: 0.036
+2026-05-20 18:39:22 | model | INFO | مدل ذخیره شد: alpha_1h.pkl
+2026-05-20 18:39:40 | strategy | INFO | تصمیم‌ها — long:2199  short:1448  flat:34548
+2026-05-20 18:39:52 | backtest | INFO | بک‌تست تمام شد — 1214 معامله، بازده 131.9% | sizing=fixed_units | max_hold=12 inclusive
+2026-05-20 18:39:52 | collector | INFO | collector 1h OK in 111.49s | candle=2026-05-20 18:00:00+00:00 | artifact_mode=metadata_only | archive=False
+2026-05-20 18:42:43 | api | INFO | اجرای زنجیره برای 1d (کش منقضی/خالی)
+2026-05-20 18:42:43 | live | INFO | ==================================================
+2026-05-20 18:42:43 | live | INFO | اجرای زنجیره برای تایم‌فریم: 1d
+2026-05-20 18:42:43 | live | INFO | ==================================================
+2026-05-20 18:42:43 | data.merge | INFO | ساخت دیتاست برای تایم‌فریم 1d ...
+2026-05-20 18:42:43 | data.exchanges | INFO | دریافت کامل bitfinex | 1d | 4000 کندل از 2018-01-01 00:00:00+00:00 ...
+2026-05-20 18:42:43 | data.exchanges | INFO | Bitfinex REST backfill 1d via 1D | target=4000 source_limit=4000 since=2018-01-01 00:00:00+00:00
+2026-05-20 18:42:44 | data.exchanges | INFO | bitfinex 1d دریافت شد | rows=3062 | first=2018-01-01 00:00:00+00:00 | last=2026-05-20 00:00:00+00:00
+2026-05-20 18:42:44 | data.exchanges | INFO | دریافت کامل kraken | 1d | 500 کندل از 2025-01-05 18:42:44.490000+00:00 ...
+2026-05-20 18:42:47 | data.exchanges | INFO | kraken 1d دریافت شد | rows=500 | first=2025-01-06 00:00:00+00:00 | last=2026-05-20 00:00:00+00:00
+2026-05-20 18:42:47 | data.merge | INFO | صرافی‌های دریافت‌شده: ['bitfinex', 'kraken']
+2026-05-20 18:42:47 | data.merge | INFO | سری‌ی اجماعی: 3062 کندل (2018-01-01 00:00:00+00:00 تا 2026-05-20 00:00:00+00:00)
+2026-05-20 18:42:47 | data.macro | INFO | بارگذاری ماکرو از کش.
+2026-05-20 18:42:47 | data.merge | INFO | ماکرو چسبانده شد: ['DXY', 'VIX', 'GOLD', 'US10Y', 'SPX']
+2026-05-20 18:42:47 | regime | INFO | توزیع رژیم: {'neutral': 1448, 'expansion': 977, 'recession': 637} | source=rule_based_causal
+2026-05-20 18:42:47 | features | INFO | ساخت فیچر برای 1d ...
+2026-05-20 18:42:47 | features | INFO | ماکرو فقط context/regime است و از فیچرهای مدل حذف شد | macro_candidates=15
+2026-05-20 18:42:51 | features | INFO | label mode trade_outcome | 1d | class dist={0: 1282, 1: 323, 2: 1437}
+2026-05-20 18:42:51 | features | INFO | تعداد فیچر: 37 | تعداد ردیف معتبر: 2858 | macro_used=0 | label=trade_outcome
+2026-05-20 18:42:51 | model | WARNING | مدل ذخیره‌شده‌ای برای 1d پیدا نشد.
+2026-05-20 18:42:51 | model | INFO | تقسیم زمانی با purge — train:1988  valid:421  test:428  embargo:7
+2026-05-20 18:42:51 | model | INFO | آموزش بدون class weighting؛ احتمال‌ها طبیعی‌تر ولی recall کلاس‌های کم‌تعداد ممکن است کمتر شود.
+2026-05-20 18:42:52 | model | INFO | دقت — valid: 0.470   test: 0.409   baseline_test: 0.463   lift: -0.054
+2026-05-20 18:42:52 | model | INFO | مدل ذخیره شد: alpha_1d.pkl
+2026-05-20 18:42:53 | strategy | INFO | تصمیم‌ها — long:1300  short:1217  flat:341
+2026-05-20 18:42:54 | backtest | INFO | بک‌تست تمام شد — 711 معامله، بازده 438.0% | sizing=fixed_units | max_hold=7 inclusive
+2026-05-20 18:42:55 | backtest | INFO | بک‌تست تمام شد — 461 معامله، بازده 486.8% | sizing=fixed_units | max_hold=7 inclusive
+2026-05-20 18:42:55 | backtest | INFO | بک‌تست تمام شد — 123 معامله، بازده 1.2% | sizing=fixed_units | max_hold=7 inclusive
+2026-05-20 18:42:55 | backtest | INFO | بک‌تست تمام شد — 83 معامله، بازده -30.6% | sizing=fixed_units | max_hold=7 inclusive
+2026-05-20 18:43:01 | live | INFO | ==================================================
+2026-05-20 18:43:01 | live | INFO | اجرای زنجیره برای تایم‌فریم: 4h
+2026-05-20 18:43:01 | live | INFO | ==================================================
+2026-05-20 18:43:01 | data.merge | INFO | ساخت دیتاست برای تایم‌فریم 4h ...
+2026-05-20 18:43:01 | data.exchanges | INFO | دریافت کامل bitfinex | 4h | 20000 کندل از 2018-01-01 00:00:00+00:00 ...
+2026-05-20 18:43:01 | data.exchanges | INFO | Bitfinex REST backfill 4h via 1h | target=20000 source_limit=80000 since=2018-01-01 00:00:00+00:00
+2026-05-20 18:43:08 | data.exchanges | INFO | bitfinex 4h دریافت شد | rows=18370 | first=2018-01-01 00:00:00+00:00 | last=2026-05-20 16:00:00+00:00
+2026-05-20 18:43:08 | data.exchanges | INFO | دریافت کامل kraken | 4h | 500 کندل از 2026-02-26 10:43:08.943000+00:00 ...
+2026-05-20 18:43:12 | data.exchanges | INFO | kraken 4h دریافت شد | rows=500 | first=2026-02-26 12:00:00+00:00 | last=2026-05-20 16:00:00+00:00
+2026-05-20 18:43:12 | data.merge | INFO | صرافی‌های دریافت‌شده: ['bitfinex', 'kraken']
+2026-05-20 18:43:12 | data.merge | INFO | سری‌ی اجماعی: 18370 کندل (2018-01-01 00:00:00+00:00 تا 2026-05-20 16:00:00+00:00)
+2026-05-20 18:43:12 | data.macro | INFO | بارگذاری ماکرو از کش.
+2026-05-20 18:43:12 | data.merge | INFO | ماکرو چسبانده شد: ['DXY', 'VIX', 'GOLD', 'US10Y', 'SPX']
+2026-05-20 18:43:12 | regime | INFO | توزیع رژیم: {'neutral': 10206, 'expansion': 4758, 'recession': 3406} | source=rule_based_causal
+2026-05-20 18:43:12 | features | INFO | ساخت فیچر برای 4h ...
+2026-05-20 18:43:12 | features | INFO | ماکرو فقط context/regime است و از فیچرهای مدل حذف شد | macro_candidates=15
+2026-05-20 18:43:32 | features | INFO | label mode trade_outcome | 4h | class dist={0: 6758, 1: 4259, 2: 7333}
+2026-05-20 18:43:32 | features | INFO | تعداد فیچر: 37 | تعداد ردیف معتبر: 18166 | macro_used=0 | label=trade_outcome
+2026-05-20 18:43:32 | model | WARNING | مدل ذخیره‌شده‌ای برای 4h پیدا نشد.
+2026-05-20 18:43:32 | model | INFO | تقسیم زمانی با purge — train:12704  valid:2717  test:2724  embargo:7
+2026-05-20 18:43:32 | model | INFO | آموزش بدون class weighting؛ احتمال‌ها طبیعی‌تر ولی recall کلاس‌های کم‌تعداد ممکن است کمتر شود.
+2026-05-20 18:43:37 | model | INFO | دقت — valid: 0.367   test: 0.362   baseline_test: 0.370   lift: -0.008
+2026-05-20 18:43:37 | model | INFO | مدل ذخیره شد: alpha_4h.pkl
+2026-05-20 18:43:45 | strategy | INFO | تصمیم‌ها — long:3436  short:2486  flat:12244
+2026-05-20 18:43:51 | backtest | INFO | بک‌تست تمام شد — 2175 معامله، بازده 386.0% | sizing=fixed_units | max_hold=7 inclusive
+2026-05-20 18:43:51 | collector | INFO | collector 4h OK in 50.79s | candle=2026-05-20 16:00:00+00:00 | artifact_mode=metadata_only | archive=False
+2026-05-20 18:48:01 | live | INFO | ==================================================
+2026-05-20 18:48:01 | live | INFO | اجرای زنجیره برای تایم‌فریم: 1d
+2026-05-20 18:48:01 | live | INFO | ==================================================
+2026-05-20 18:48:01 | data.merge | INFO | ساخت دیتاست برای تایم‌فریم 1d ...
+2026-05-20 18:48:01 | data.exchanges | INFO | بارگذاری از کش تازه و کامل: bitfinex_1d.parquet | rows=3062 | age=316.6s
+2026-05-20 18:48:01 | data.exchanges | INFO | bitfinex 1d دریافت شد | rows=3062 | first=2018-01-01 00:00:00+00:00 | last=2026-05-20 00:00:00+00:00
+2026-05-20 18:48:01 | data.exchanges | INFO | بارگذاری از کش تازه و کامل: kraken_1d.parquet | rows=500 | age=313.3s
+2026-05-20 18:48:01 | data.exchanges | INFO | kraken 1d دریافت شد | rows=500 | first=2025-01-06 00:00:00+00:00 | last=2026-05-20 00:00:00+00:00
+2026-05-20 18:48:01 | data.merge | INFO | صرافی‌های دریافت‌شده: ['bitfinex', 'kraken']
+2026-05-20 18:48:01 | data.merge | INFO | سری‌ی اجماعی: 3062 کندل (2018-01-01 00:00:00+00:00 تا 2026-05-20 00:00:00+00:00)
+2026-05-20 18:48:01 | data.macro | INFO | بارگذاری ماکرو از کش.
+2026-05-20 18:48:01 | data.merge | INFO | ماکرو چسبانده شد: ['DXY', 'VIX', 'GOLD', 'US10Y', 'SPX']
+2026-05-20 18:48:01 | regime | INFO | توزیع رژیم: {'neutral': 1448, 'expansion': 977, 'recession': 637} | source=rule_based_causal
+2026-05-20 18:48:01 | features | INFO | ساخت فیچر برای 1d ...
+2026-05-20 18:48:01 | features | INFO | ماکرو فقط context/regime است و از فیچرهای مدل حذف شد | macro_candidates=15
+2026-05-20 18:48:04 | features | INFO | label mode trade_outcome | 1d | class dist={0: 1282, 1: 323, 2: 1437}
+2026-05-20 18:48:04 | features | INFO | تعداد فیچر: 37 | تعداد ردیف معتبر: 2858 | macro_used=0 | label=trade_outcome
+2026-05-20 18:48:04 | model | INFO | مدل 1d بارگذاری شد (آموزش: 2026-05-20T18:42:52.776977+00:00).
+2026-05-20 18:48:05 | strategy | INFO | تصمیم‌ها — long:1300  short:1217  flat:341
+2026-05-20 18:48:06 | backtest | INFO | بک‌تست تمام شد — 711 معامله، بازده 438.0% | sizing=fixed_units | max_hold=7 inclusive
+2026-05-20 18:48:07 | collector | INFO | collector 1d OK in 6.07s | candle=2026-05-20 00:00:00+00:00 | artifact_mode=metadata_only | archive=False

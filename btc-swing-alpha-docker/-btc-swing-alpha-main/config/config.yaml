@@ -1,0 +1,195 @@
+project:
+  name: "btc-swing-alpha"
+  base_currency: "USD"
+  symbol: "BTC/USD"
+  timezone: "UTC"
+
+data:
+  exchanges:
+    - bitfinex
+    - kraken
+  primary_exchange: "bitfinex"
+  backup_history_limit: 500
+  timeframes:
+    - "5m"
+    - "15m"
+    - "1h"
+    - "4h"
+    - "1d"
+  history_start: "2018-01-01T00:00:00Z"
+  history_start_by_tf:
+    "1d": "2018-01-01T00:00:00Z"
+    "4h": "2018-01-01T00:00:00Z"
+    "1h": "2022-01-01T00:00:00Z"
+    "15m": "2024-01-01T00:00:00Z"
+    "5m": "2025-01-01T00:00:00Z"
+  history:
+    "1d": 4000
+    "4h": 20000
+    "1h": 40000
+    "15m": 90000
+    "5m": 160000
+  macro:
+    enabled: true
+    tickers:
+      DXY: "DX-Y.NYB"
+      VIX: "^VIX"
+      GOLD: "GC=F"
+      US10Y: "^TNX"
+      SPX: "^GSPC"
+    history_days: 4000
+  cache_dir: "storage/data_cache_bitfinex_rest_tiered_v10"
+  allow_synthetic_fallback: false
+
+collector:
+  enabled: true
+  save_dir: "storage/collector_bitfinex_rest_tiered_v10"
+  force_retrain: false
+  max_concurrent: 1
+  archive_enabled: false
+  max_archives_per_timeframe: 0
+  artifact_mode: "metadata_only"
+  startup_stagger_seconds: 300
+  timeframes:
+    - "1h"
+    - "4h"
+    - "1d"
+  default_interval_seconds: 3600
+  intervals_seconds:
+    "1h": 7200
+    "4h": 14400
+    "1d": 86400
+
+features:
+  include_macro_features: false
+  label_mode: "trade_outcome"
+  trade_outcome_min_edge_pct:
+    "1d": 0.30
+    "4h": 0.20
+    "1h": 0.12
+    "15m": 0.08
+    "5m": 0.05
+  ma_windows: [10, 20, 50, 100, 200]
+  rsi_window: 14
+  atr_window: 14
+  vol_windows: [10, 20, 30]
+  horizons:
+    "1d": 7
+    "4h": 7
+    "1h": 12
+    "15m": 16
+    "5m": 12
+  label_threshold_pct:
+    "1d": 1.5
+    "4h": 1.0
+    "1h": 0.6
+    "15m": 0.35
+    "5m": 0.20
+
+model:
+  type: "lightgbm"
+  task: "classification"
+  class_weighting: "none"
+  train_ratio: 0.70
+  valid_ratio: 0.15
+  retrain:
+    enabled: true
+    every_n_days: 7
+  lightgbm_params:
+    objective: "multiclass"
+    num_class: 3
+    n_estimators: 300
+    learning_rate: 0.025
+    max_depth: 7
+    num_leaves: 63
+    subsample: 0.85
+    colsample_bytree: 0.85
+    min_child_samples: 50
+    reg_alpha: 0.2
+    reg_lambda: 0.2
+    random_state: 42
+    n_jobs: 1
+    verbosity: -1
+  model_dir: "storage/models_bitfinex_rest_tiered_v10"
+
+regime:
+  method: "rule_based"
+  allow_full_sample_hmm: false
+  hmm_states: 3
+  lookback: 60
+
+strategy:
+  max_position: 1.0
+  max_position_by_tf:
+    "5m": 0.20
+    "15m": 0.25
+    "1h": 0.35
+    "4h": 0.50
+    "1d": 0.70
+  min_confidence: 0.45
+  min_confidence_by_tf:
+    "5m": 0.58
+    "15m": 0.56
+    "1h": 0.54
+    "4h": 0.52
+    "1d": 0.40
+  min_abs_signal_by_tf:
+    "5m": 0.16
+    "15m": 0.14
+    "1h": 0.11
+    "4h": 0.09
+    "1d": 0.065
+  neutral_margin_by_tf:
+    "5m": 0.06
+    "15m": 0.05
+    "1h": 0.04
+    "4h": 0.03
+    "1d": 0.02
+  allow_short_by_tf:
+    "5m": false
+    "15m": true
+    "1h": true
+    "4h": true
+    "1d": true
+  cooldown_candles_by_tf:
+    "5m": 6
+    "15m": 4
+    "1h": 2
+    "4h": 1
+    "1d": 0
+  trend_filter:
+    enabled: true
+    fast_ma: 20
+    slow_ma: 100
+  trend_filter_threshold_by_tf:
+    "5m": 0.0015
+    "15m": 0.0012
+    "1h": 0.0010
+    "4h": 0.0005
+    "1d": 0.0000
+  regime_multipliers:
+    expansion: 1.0
+    neutral: 1.0
+    recession: 1.0
+  stop_loss_atr: 2.0
+  take_profit_atr: 4.5
+  use_kelly: false
+  kelly_fraction: 0.0
+
+backtest:
+  initial_capital: 100000
+  sizing_mode: "fixed_units"
+  fixed_trade_units: 1.0
+  fee_pct: 0.10
+  slippage_pct: 0.05
+  allow_short: true
+  use_max_holding_bars: true
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  refresh_seconds: 60
+
+logging:
+  level: "INFO"
+  dir: "storage/logs"

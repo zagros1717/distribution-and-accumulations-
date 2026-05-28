@@ -1,0 +1,7 @@
+railway-deploy-check: v6
+force-trigger: 2026-05-14T18:50:00Z
+runtime-endpoint: /api/runtime
+cache: storage/data_cache_kraken_real_intraday_lgbm_v6
+models: storage/models_kraken_real_intraday_lgbm_v6
+collector: storage/collector_lgbm_v6
+expected-api-version: 1.6

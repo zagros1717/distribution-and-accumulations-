@@ -1,0 +1,219 @@
+{
+  "timeframe": "1d",
+  "generated_at": "2026-05-20T18:48:07.130807+00:00",
+  "saved_at": "2026-05-20T18:48:07.131522+00:00",
+  "artifact_mode": "metadata_only",
+  "source_exchanges": [
+    "bitfinex",
+    "kraken"
+  ],
+  "primary_exchange": "bitfinex",
+  "synthetic_fallback": false,
+  "model_type": "lightgbm",
+  "rows_dataset": 3062,
+  "rows_features": 2858,
+  "rows_labeled": 2851,
+  "first_candle": "2018-01-01 00:00:00+00:00",
+  "last_candle": "2026-05-20 00:00:00+00:00",
+  "last_price": 77507.2,
+  "feature_count": 37,
+  "model_meta": {
+    "timeframe": "1d",
+    "model_type": "lightgbm",
+    "feature_cols": [
+      "ret_1",
+      "ret_3",
+      "ret_5",
+      "ret_10",
+      "ret_20",
+      "ma_ratio_10",
+      "ma_slope_10",
+      "ma_ratio_20",
+      "ma_slope_20",
+      "ma_ratio_50",
+      "ma_slope_50",
+      "ma_ratio_100",
+      "ma_slope_100",
+      "ma_ratio_200",
+      "ma_slope_200",
+      "rsi_14",
+      "macd",
+      "macd_hist",
+      "atr_pct",
+      "vol_10",
+      "vol_20",
+      "vol_30",
+      "price_pos_14",
+      "price_pos_30",
+      "close_loc",
+      "body_ratio",
+      "upper_wick",
+      "lower_wick",
+      "vol_rel_10",
+      "vol_rel_20",
+      "vol_rel_50",
+      "obv_slope",
+      "signed_dv_5",
+      "signed_dv_20",
+      "x_spread",
+      "x_spread_z",
+      "x_count"
+    ],
+    "trained_at": "2026-05-20T18:42:52.776977+00:00",
+    "n_train": 1988,
+    "n_valid": 421,
+    "n_test": 428,
+    "valid_accuracy": 0.47030878859857483,
+    "test_accuracy": 0.4088785046728972,
+    "class_distribution": {
+      "0": 825,
+      "1": 213,
+      "2": 950
+    },
+    "horizon": 7,
+    "majority_class": 2,
+    "baseline_valid_accuracy": 0.46318289786223277,
+    "baseline_test_accuracy": 0.46261682242990654,
+    "accuracy_lift_vs_baseline": -0.053738317757009324,
+    "train_class_distribution": {
+      "count": {
+        "0": 825,
+        "1": 213,
+        "2": 950
+      },
+      "pct": {
+        "0": 0.415,
+        "1": 0.1071,
+        "2": 0.4779
+      }
+    },
+    "valid_class_distribution": {
+      "count": {
+        "0": 179,
+        "1": 47,
+        "2": 195
+      },
+      "pct": {
+        "0": 0.4252,
+        "1": 0.1116,
+        "2": 0.4632
+      }
+    },
+    "test_class_distribution": {
+      "count": {
+        "0": 175,
+        "1": 55,
+        "2": 198
+      },
+      "pct": {
+        "0": 0.4089,
+        "1": 0.1285,
+        "2": 0.4626
+      }
+    },
+    "data_start": "2018-07-24 00:00:00+00:00",
+    "data_end": "2026-05-13 00:00:00+00:00",
+    "fit_start": "2018-07-24 00:00:00+00:00",
+    "fit_end": "2024-01-01 00:00:00+00:00",
+    "valid_start": "2024-01-09 00:00:00+00:00",
+    "valid_end": "2025-03-04 00:00:00+00:00",
+    "test_start": "2025-03-12 00:00:00+00:00",
+    "test_end": "2026-05-13 00:00:00+00:00",
+    "class_weighting": "none",
+    "label_mode": "trade_outcome",
+    "embargo_bars": 7,
+    "split_method": "chronological_purged_horizon_embargo"
+  },
+  "live": {
+    "timestamp": "2026-05-20 00:00:00+00:00",
+    "timeframe": "1d",
+    "decision": {
+      "direction": "long",
+      "raw_alpha": 0.39095448171667824,
+      "final_signal": 0.39095448171667824,
+      "position": 0.39095448171667824,
+      "confidence": 0.6344030206714998,
+      "regime": "expansion",
+      "regime_score": 0.6000540683934791,
+      "stop_loss": 73629.86428571428,
+      "take_profit": 86231.20535714286,
+      "price": 77507.2,
+      "atr": 1938.6678571428577,
+      "trend_strength": 0.09796143097338206,
+      "reasons": [
+        "ML: p_up=0.63 p_down=0.24 p_neutral=0.12",
+        "رژیم=expansion (ضریب 1.0)",
+        "threshold=0.065 conf_min=0.40",
+        "پوزیشن=+0.39  SL=73630  TP=86231"
+      ],
+      "market_price": 77470.0,
+      "candle_close_price": 77507.2,
+      "price_source": "ticker",
+      "price_delta_vs_candle_pct": -0.047995541059409064
+    },
+    "proba": {
+      "p_down": 0.24344853895482152,
+      "p_neutral": 0.12214844037367868,
+      "p_up": 0.6344030206714998
+    },
+    "model_bias": {
+      "bias": "bullish",
+      "raw_alpha": 0.39095448171667824,
+      "directional_confidence": 0.6344030206714998,
+      "neutral_probability": 0.12214844037367868,
+      "trade_gate_direction": "long",
+      "trade_gate_blocked": false,
+      "block_reasons": []
+    },
+    "market": {
+      "exchange": "bitfinex",
+      "symbol": "BTC/USD",
+      "price": 77470.0,
+      "bid": 77464.0,
+      "ask": 77470.0,
+      "spread": 6.0,
+      "timestamp": "2026-05-20T18:48:06.964077+00:00",
+      "source": "ticker"
+    },
+    "comparison": {
+      "scope": "test_only",
+      "test_start": "2025-03-12 00:00:00+00:00",
+      "test_end": "2026-05-13 00:00:00+00:00",
+      "historical_win_rate_same_direction": 50.8,
+      "historical_avg_pct_same_direction": -0.515,
+      "historical_win_rate_same_regime": 51.3,
+      "n_similar_trades": 65,
+      "test_only_n_trades": 119,
+      "test_only_win_rate": 45.4,
+      "test_only_avg_trade_pct": -0.471,
+      "full_backtest_overall_win_rate_hidden_from_verdict": 74.0,
+      "full_backtest_sharpe_hidden_from_verdict": 3.36
+    },
+    "verdict": {
+      "level": "weak",
+      "text": "سیگنال خام ML با شواهد test مستقل تایید نمی‌شود؛ قابل معامله نیست.",
+      "notes": [
+        "مقایسه فقط بر اساس دوره‌ی test مستقل انجام شده است",
+        "میانگین سود معامله در test مثبت نیست (-0.471٪)"
+      ],
+      "score": -1
+    }
+  },
+  "backtest_metrics": {
+    "total_return": 437.96,
+    "buyhold_return": 69.12,
+    "cagr": 23.97,
+    "sharpe": 3.36,
+    "sortino": 5.35,
+    "max_drawdown": -13.51,
+    "n_trades": 711,
+    "win_rate": 74.0,
+    "profit_factor": 2.23,
+    "avg_trade_pct": 2.72,
+    "sizing_mode": "fixed_units",
+    "fixed_trade_units": 1.0,
+    "max_holding_bars": 7,
+    "max_holding_counting": "inclusive_from_entry_bar",
+    "entry_bar_stops_checked": true
+  }
+}

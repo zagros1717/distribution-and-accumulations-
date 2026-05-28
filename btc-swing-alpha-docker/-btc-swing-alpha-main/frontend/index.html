@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BTC SWING ALPHA · ترمینال</title>
+<style>
+  /* ============================================================
+     BTC Swing Alpha — داشبورد
+     زیبایی‌شناسی: ترمینال معاملاتی حرفه‌ای، تیره، چگال داده.
+     فونت‌ها: JetBrains Mono برای داده، Vazirmatn برای متن فارسی.
+     ============================================================ */
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Vazirmatn:wght@400;500;700;900&display=swap');
+
+  :root {
+    --bg:        #0a0e14;
+    --panel:     #11161f;
+    --panel-2:   #161d2a;
+    --border:    #1f2937;
+    --grid:      #1a2230;
+    --text:      #c9d4e3;
+    --text-dim:  #5f6b7d;
+    --accent:    #ffb000;   /* کهربایی — رنگ امضای ترمینال */
+    --long:      #16c784;
+    --short:     #ea3943;
+    --flat:      #6b7686;
+    --recession: #ea3943;
+    --neutral:   #ffb000;
+    --expansion: #16c784;
+    --glow:      0 0 24px rgba(255,176,0,.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Vazirmatn', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255,176,0,.06), transparent),
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,.008) 2px, rgba(255,255,255,.008) 4px);
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ---------- هدر ---------- */
+  header {
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg) 100%);
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -.5px;
+    color: var(--accent);
+    text-shadow: var(--glow);
+  }
+  .brand .logo::before { content: "▲ "; font-size: 13px; }
+  .brand .tag {
+    font-size: 11px; color: var(--text-dim);
+    border-right: 1px solid var(--border); padding-right: 14px;
+  }
+  .header-right { display: flex; align-items: center; gap: 18px; }
+  .clock { font-size: 12px; color: var(--text-dim); }
+  .status-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--long); margin-left: 6px;
+    box-shadow: 0 0 8px var(--long); animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ---------- نوار تایم‌فریم ---------- */
+  .tf-bar {
+    display: flex; gap: 0; padding: 0 22px;
+    border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  .tf-btn {
+    background: none; border: none; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace; font-weight: 700;
+    font-size: 13px; padding: 12px 24px; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all .15s;
+  }
+  .tf-btn:hover { color: var(--text); }
+  .tf-btn.active {
+    color: var(--accent); border-bottom-color: var(--accent);
+    background: linear-gradient(180deg, transparent, rgba(255,176,0,.05));
+  }
+
+  /* ---------- چیدمان ---------- */
+  .wrap { padding: 22px; max-width: 1480px; margin: 0 auto; }
+  .grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(12, 1fr);
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+    font-size: 11px; font-weight: 700; letter-spacing: .5px;
+    color: var(--text-dim); text-transform: uppercase;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .panel-head .badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--accent);
+  }
+  .panel-body { padding: 16px; }
+
+  .col-3  { grid-column: span 3; }
+  .col-4  { grid-column: span 4; }
+  .col-5  { grid-column: span 5; }
+  .col-6  { grid-column: span 6; }
+  .col-7  { grid-column: span 7; }
+  .col-8  { grid-column: span 8; }
+  .col-12 { grid-column: span 12; }
+  @media (max-width: 1100px) {
+    .col-3,.col-4,.col-5,.col-6,.col-7,.col-8 { grid-column: span 12; }
+  }
+
+  /* ---------- کارت تصمیم لایو ---------- */
+  .signal-hero {
+    display: flex; align-items: stretch; gap: 0;
+  }
+  .signal-main {
+    flex: 1; padding: 22px 26px;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: 6px;
+  }
+  .signal-dir {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 46px; font-weight: 800; letter-spacing: -1px;
+    line-height: 1;
+  }
+  .signal-dir.long  { color: var(--long); text-shadow: 0 0 30px rgba(22,199,132,.35); }
+  .signal-dir.short { color: var(--short); text-shadow: 0 0 30px rgba(234,57,67,.35); }
+  .signal-dir.flat  { color: var(--flat); }
+  .signal-sub { font-size: 12px; color: var(--text-dim); }
+  .signal-meta {
+    width: 240px; border-right: 1px solid var(--border);
+    background: var(--panel-2); padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .meta-row { display: flex; justify-content: space-between; font-size: 12px; }
+  .meta-row .k { color: var(--text-dim); }
+  .meta-row .v { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+  /* ---------- نوار سیگنال ---------- */
+  .sigbar {
+    height: 8px; background: var(--panel-2); border-radius: 4px;
+    position: relative; margin: 8px 0; overflow: hidden;
+  }
+  .sigbar .fill { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+  .sigbar .mid {
+    position: absolute; left: 50%; top: -2px; bottom: -2px;
+    width: 1px; background: var(--text-dim);
+  }
+
+  /* ---------- چیپ رژیم ---------- */
+  .regime-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 700;
+    font-size: 12px; padding: 5px 12px; border-radius: 4px;
+    border: 1px solid;
+  }
+  .regime-chip.expansion { color: var(--expansion); border-color: var(--expansion); background: rgba(22,199,132,.08); }
+  .regime-chip.neutral   { color: var(--neutral);   border-color: var(--neutral);   background: rgba(255,176,0,.08); }
+  .regime-chip.recession { color: var(--recession); border-color: var(--recession); background: rgba(234,57,67,.08); }
+  .regime-chip::before { content: "●"; font-size: 9px; }
+
+  /* ---------- حکم ---------- */
+  .verdict {
+    border-radius: 5px; padding: 12px 14px; font-size: 13px;
+    border-right: 3px solid;
+  }
+  .verdict.strong   { border-color: var(--long);  background: rgba(22,199,132,.06); }
+  .verdict.moderate { border-color: var(--neutral); background: rgba(255,176,0,.06); }
+  .verdict.weak     { border-color: var(--short); background: rgba(234,57,67,.06); }
+  .verdict.neutral  { border-color: var(--flat);  background: rgba(107,118,134,.06); }
+  .verdict .vtitle { font-weight: 700; margin-bottom: 4px; }
+  .verdict ul { list-style: none; margin-top: 6px; }
+  .verdict li { font-size: 11px; color: var(--text-dim); padding: 1px 0; }
+  .verdict li::before { content: "› "; color: var(--accent); }
+
+  /* ---------- متریک‌ها ---------- */
+  .metrics-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--border);
+  }
+  .metric {
+    background: var(--panel); padding: 14px 16px;
+  }
+  .metric .label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; }
+  .metric .value {
+    font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700;
+    margin-top: 4px;
+  }
+  .metric .value.pos { color: var(--long); }
+  .metric .value.neg { color: var(--short); }
+
+  /* ---------- جدول معاملات ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: right; padding: 8px 10px; color: var(--text-dim);
+    font-weight: 700; font-size: 10px; text-transform: uppercase;
+    border-bottom: 1px solid var(--border); letter-spacing: .5px;
+  }
+  td {
+    padding: 7px 10px; border-bottom: 1px solid var(--grid);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  tr:hover td { background: var(--panel-2); }
+  .pill {
+    font-size: 10px; padding: 2px 7px; border-radius: 3px; font-weight: 700;
+  }
+  .pill.long  { color: var(--long);  background: rgba(22,199,132,.12); }
+  .pill.short { color: var(--short); background: rgba(234,57,67,.12); }
+
+  /* ---------- چارت ---------- */
+  canvas { display: block; width: 100%; }
+
+  /* ---------- فیچرها ---------- */
+  .feat-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 7px;
+  }
+  .feat-name {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    width: 130px; color: var(--text); flex-shrink: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .feat-bar-bg {
+    flex: 1; height: 6px; background: var(--panel-2); border-radius: 3px;
+    overflow: hidden;
+  }
+  .feat-bar { height: 100%; background: linear-gradient(90deg, var(--accent), #ff8c00); border-radius: 3px; }
+
+  /* ---------- ابزار ---------- */
+  .toolbar { display: flex; gap: 8px; }
+  .btn {
+    background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); font-family: 'Vazirmatn'; font-size: 11px;
+    font-weight: 700; padding: 6px 14px; border-radius: 4px; cursor: pointer;
+    transition: all .15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .loading {
+    color: var(--text-dim); font-size: 12px; padding: 30px;
+    text-align: center; font-family: 'JetBrains Mono', monospace;
+  }
+  .loading::after { content: "▮"; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 0%,50%{opacity:1} 51%,100%{opacity:0} }
+
+  .err {
+    color: var(--short); font-size: 12px; padding: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(234,57,67,.06); border-radius: 4px;
+  }
+
+  .footnote {
+    margin-top: 22px; padding: 14px 18px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--panel);
+    font-size: 11px; color: var(--text-dim); line-height: 1.8;
+  }
+  .footnote b { color: var(--neutral); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo">BTC SWING ALPHA</span>
+    <span class="tag">ترمینال تحلیل · ML آلفا + میکرواستراکچر + رژیم ماکرو</span>
+  </div>
+  <div class="header-right">
+    <span class="clock mono" id="clock">--:--:--</span>
+    <span class="mono" style="font-size:12px">
+      API<span class="status-dot" id="apiDot"></span>
+    </span>
+  </div>
+</header>
+
+<div class="tf-bar" id="tfBar">
+  <button class="tf-btn active" data-tf="1d">روزانه · 1D</button>
+  <button class="tf-btn" data-tf="4h">۴ ساعته · 4H</button>
+</div>
+
+<div class="wrap">
+  <div class="grid" id="dash">
+    <div class="loading col-12" id="bootLoading">در حال اتصال به موتور تحلیل</div>
+  </div>
+
+  <div class="footnote">
+    <b>یادآوری:</b> این ابزار صرفاً برای تحلیل و بک‌تست است، نه توصیه‌ی سرمایه‌گذاری.
+    اگر اینترنت/کلید API در دسترس نباشد، سیستم با <b>داده‌ی شبیه‌سازی‌شده</b> کار می‌کند و
+    اعداد بک‌تست در آن حالت صرفاً برای آزمایش منطق‌اند، نه نشان‌دهنده‌ی عملکرد واقعی.
+    برای داده‌ی واقعی، پروژه را روی سیستم خودت با <span class="mono">ccxt</span> و
+    <span class="mono">yfinance</span> اجرا کن.
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   پیکربندی و وضعیت
+   ============================================================ */
+const API = location.origin.includes('file') ? 'http://localhost:8000' : location.origin;
+let currentTF = '1d';
+let refreshTimer = null;
+
+/* ---------- ساعت ---------- */
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-GB');
+}, 1000);
+
+/* ---------- ابزار شبکه ---------- */
+async function api(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error('HTTP ' + r.status + ' · ' + path);
+  return r.json();
+}
+
+/* ---------- فرمت ---------- */
+const fmt = {
+  pct:   v => (v >= 0 ? '+' : '') + Number(v).toFixed(1) + '%',
+  num:   v => Number(v).toLocaleString('en-US', {maximumFractionDigits: 2}),
+  px:    v => '$' + Number(v).toLocaleString('en-US', {maximumFractionDigits: 0}),
+  sig:   v => (v >= 0 ? '+' : '') + Number(v).toFixed(3),
+};
+const REGIME_FA = { expansion: 'رونق اقتصادی', neutral: 'خنثی', recession: 'رکود اقتصادی' };
+const DIR_FA    = { long: 'خرید', short: 'فروش', flat: 'بدون پوزیشن' };
+
+/* ============================================================
+   بارگذاری اصلی داشبورد
+   ============================================================ */
+async function loadDashboard(tf) {
+  currentTF = tf;
+  const dash = document.getElementById('dash');
+  dash.innerHTML = '<div class="loading col-12">در حال اجرای زنجیره برای ' + tf + ' (داده → فیچر → رژیم → مدل → استراتژی → بک‌تست)</div>';
+
+  try {
+    document.getElementById('apiDot').style.background = 'var(--neutral)';
+    const pipe = await api('/api/pipeline/' + tf);
+    document.getElementById('apiDot').style.background = 'var(--long)';
+
+    // داده‌های جانبی به‌صورت موازی
+    const [equity, decisions, trades, features] = await Promise.all([
+      api('/api/equity/' + tf),
+      api('/api/decisions/' + tf),
+      api('/api/trades/' + tf),
+      api('/api/features/' + tf),
+    ]);
+
+    renderDashboard(pipe, equity, decisions, trades, features);
+  } catch (e) {
+    document.getElementById('apiDot').style.background = 'var(--short)';
+    dash.innerHTML = '<div class="err col-12">خطا در اتصال به موتور:<br>' + e.message +
+      '<br><br>مطمئن شو بک‌اند اجرا شده:  <b>python -m btcalpha.api.server</b></div>';
+  }
+}
+
+/* ============================================================
+   رندر کل داشبورد
+   ============================================================ */
+function renderDashboard(pipe, equity, decisions, trades, features) {
+  const dash = document.getElementById('dash');
+  const live = pipe.live;
+  const d = live.decision;
+  const cmp = live.comparison;
+  const v = live.verdict;
+  const m = pipe.backtest_metrics;
+  const reg = pipe.regime_now;
+
+  dash.innerHTML = `
+    <!-- ░░ تصمیم لایو ░░ -->
+    <div class="panel col-7">
+      <div class="panel-head">
+        <span>تصمیم لحظه‌ای موتور</span>
+        <span class="badge">${live.timestamp}</span>
+      </div>
+      <div class="signal-hero">
+        <div class="signal-meta">
+          <div class="meta-row"><span class="k">قیمت فعلی</span><span class="v">${fmt.px(pipe.last_price)}</span></div>
+          <div class="meta-row"><span class="k">اطمینان مدل</span><span class="v">${(d.confidence*100).toFixed(1)}%</span></div>
+          <div class="meta-row"><span class="k">سیگنال خام ML</span><span class="v">${fmt.sig(d.raw_alpha)}</span></div>
+          <div class="meta-row"><span class="k">سیگنال نهایی</span><span class="v">${fmt.sig(d.final_signal)}</span></div>
+          ${d.stop_loss ? `<div class="meta-row"><span class="k">حد ضرر</span><span class="v" style="color:var(--short)">${fmt.px(d.stop_loss)}</span></div>` : ''}
+          ${d.take_profit ? `<div class="meta-row"><span class="k">حد سود</span><span class="v" style="color:var(--long)">${fmt.px(d.take_profit)}</span></div>` : ''}
+        </div>
+        <div class="signal-main">
+          <div class="signal-dir ${d.direction}">${DIR_FA[d.direction]}</div>
+          <div class="signal-sub">اندازه‌ی پوزیشن پیشنهادی: <b class="mono">${fmt.sig(d.position)}</b> از سرمایه</div>
+          <div class="sigbar">
+            <div class="mid"></div>
+            <div class="fill" style="
+              background:${d.final_signal>=0?'var(--long)':'var(--short)'};
+              ${d.final_signal>=0
+                ? 'left:50%;width:'+Math.min(Math.abs(d.final_signal)*50,50)+'%'
+                : 'right:50%;width:'+Math.min(Math.abs(d.final_signal)*50,50)+'%'}
+            "></div>
+          </div>
+          <div style="margin-top:8px">
+            <span class="regime-chip ${reg.regime_label}">${REGIME_FA[reg.regime_label]}</span>
+            <span style="font-size:11px;color:var(--text-dim);margin-right:8px">
+              امتیاز رژیم: <b class="mono">${fmt.sig(reg.regime_score)}</b>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ░░ حکم مقایسه‌ای ░░ -->
+    <div class="panel col-5">
+      <div class="panel-head">
+        <span>قیاس با بک‌تست — حکم سیستم</span>
+        <span class="badge">${v.level.toUpperCase()}</span>
+      </div>
+      <div class="panel-body">
+        <div class="verdict ${v.level}">
+          <div class="vtitle">${v.text}</div>
+          ${v.notes ? '<ul>' + v.notes.map(n => '<li>'+n+'</li>').join('') + '</ul>' : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+          <div>
+            <div style="font-size:10px;color:var(--text-dim)">نرخ برد تاریخی — هم‌جهت</div>
+            <div class="mono" style="font-size:18px;font-weight:700;color:var(--accent)">
+              ${cmp.historical_win_rate_same_direction ?? '—'}${cmp.historical_win_rate_same_direction?'%':''}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-dim)">نرخ برد تاریخی — هم‌رژیم</div>
+            <div class="mono" style="font-size:18px;font-weight:700;color:var(--accent)">
+              ${cmp.historical_win_rate_same_regime ?? '—'}${cmp.historical_win_rate_same_regime?'%':''}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-dim)">معاملات مشابه</div>
+            <div class="mono" style="font-size:18px;font-weight:700">${cmp.n_similar_trades}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-dim)">شارپ بک‌تست</div>
+            <div class="mono" style="font-size:18px;font-weight:700">${cmp.backtest_sharpe}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ░░ متریک‌های بک‌تست ░░ -->
+    <div class="panel col-12">
+      <div class="panel-head">
+        <span>عملکرد بک‌تست</span>
+        <div class="toolbar">
+          <span class="badge">مدل آموزش: ${pipe.model.trained_at.slice(0,16).replace('T',' ')}</span>
+          <button class="btn" id="retrainBtn">بازآموزی مدل</button>
+        </div>
+      </div>
+      <div class="metrics-grid">
+        ${metricCell('بازده کل استراتژی', fmt.pct(m.total_return), m.total_return>=0)}
+        ${metricCell('بازده Buy & Hold', fmt.pct(m.buyhold_return), m.buyhold_return>=0)}
+        ${metricCell('CAGR سالانه', fmt.pct(m.cagr), m.cagr>=0)}
+        ${metricCell('نسبت شارپ', m.sharpe.toFixed(2), m.sharpe>=1)}
+        ${metricCell('نسبت سورتینو', m.sortino.toFixed(2), m.sortino>=1)}
+        ${metricCell('حداکثر افت سرمایه', fmt.pct(m.max_drawdown), false)}
+        ${metricCell('تعداد معاملات', m.n_trades, null)}
+        ${metricCell('نرخ برد', m.win_rate.toFixed(1)+'%', m.win_rate>=50)}
+        ${metricCell('فاکتور سود', m.profit_factor.toFixed(2), m.profit_factor>=1)}
+      </div>
+    </div>
+
+    <!-- ░░ منحنی سرمایه ░░ -->
+    <div class="panel col-8">
+      <div class="panel-head"><span>منحنی سرمایه — استراتژی در برابر Buy & Hold</span></div>
+      <div class="panel-body"><canvas id="equityChart" height="260"></canvas></div>
+    </div>
+
+    <!-- ░░ اهمیت فیچر ░░ -->
+    <div class="panel col-4">
+      <div class="panel-head"><span>مهم‌ترین سیگنال‌های مدل</span></div>
+      <div class="panel-body" id="featBox"></div>
+    </div>
+
+    <!-- ░░ سیگنال روی قیمت ░░ -->
+    <div class="panel col-8">
+      <div class="panel-head"><span>قیمت + پوزیشن استراتژی + رژیم</span></div>
+      <div class="panel-body"><canvas id="signalChart" height="240"></canvas></div>
+    </div>
+
+    <!-- ░░ آخرین معاملات ░░ -->
+    <div class="panel col-4">
+      <div class="panel-head">
+        <span>آخرین معاملات بک‌تست</span>
+        <span class="badge">${trades.total} کل</span>
+      </div>
+      <div class="panel-body" style="padding:0;max-height:300px;overflow:auto">
+        <table>
+          <thead><tr><th>جهت</th><th>ورود</th><th>خروج</th><th>سود٪</th><th>دلیل</th></tr></thead>
+          <tbody>
+            ${trades.trades.slice().reverse().slice(0,18).map(t => `
+              <tr>
+                <td><span class="pill ${t.direction}">${DIR_FA[t.direction]}</span></td>
+                <td>${fmt.px(t.entry_price)}</td>
+                <td>${fmt.px(t.exit_price)}</td>
+                <td style="color:${t.pnl_pct>=0?'var(--long)':'var(--short)'}">${fmt.sig(t.pnl_pct)}</td>
+                <td style="color:var(--text-dim);font-size:10px">${exitReasonFA(t.exit_reason)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // رندر چارت‌ها و فیچرها
+  drawEquityChart(equity);
+  drawSignalChart(decisions);
+  drawFeatures(features);
+
+  // دکمه‌ی بازآموزی
+  document.getElementById('retrainBtn').onclick = async (ev) => {
+    ev.target.disabled = true;
+    ev.target.textContent = 'در حال بازآموزی…';
+    try {
+      await fetch(API + '/api/retrain/' + currentTF, {method: 'POST'});
+      await loadDashboard(currentTF);
+    } catch (e) {
+      ev.target.textContent = 'خطا';
+    }
+  };
+}
+
+function metricCell(label, value, positive) {
+  const cls = positive === null ? '' : (positive ? 'pos' : 'neg');
+  return `<div class="metric">
+    <div class="label">${label}</div>
+    <div class="value ${cls}">${value}</div>
+  </div>`;
+}
+
+function exitReasonFA(r) {
+  return {signal_flip:'تغییر سیگنال', stop_loss:'حد ضرر',
+          take_profit:'حد سود', end:'پایان دوره'}[r] || r;
+}
+
+/* ============================================================
+   چارت‌ها — canvas خام، بدون کتابخانه
+   ============================================================ */
+function setupCanvas(id) {
+  const cv = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  const rect = cv.getBoundingClientRect();
+  cv.width = rect.width * dpr;
+  cv.height = cv.height * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return {ctx, w: rect.width, h: cv.height / dpr};
+}
+
+function drawEquityChart(eq) {
+  const {ctx, w, h} = setupCanvas('equityChart');
+  const pad = {l: 56, r: 14, t: 14, b: 24};
+  const s = eq.strategy, b = eq.buyhold;
+  const all = s.concat(b);
+  const min = Math.min(...all), max = Math.max(...all);
+  const range = max - min || 1;
+  const x = i => pad.l + (w - pad.l - pad.r) * i / (s.length - 1);
+  const y = val => pad.t + (h - pad.t - pad.b) * (1 - (val - min) / range);
+
+  ctx.clearRect(0, 0, w, h);
+  // شبکه
+  ctx.strokeStyle = '#1a2230'; ctx.lineWidth = 1;
+  ctx.font = '10px JetBrains Mono'; ctx.fillStyle = '#5f6b7d';
+  for (let i = 0; i <= 4; i++) {
+    const gy = pad.t + (h - pad.t - pad.b) * i / 4;
+    ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(w - pad.r, gy); ctx.stroke();
+    const val = max - range * i / 4;
+    ctx.textAlign = 'right';
+    ctx.fillText('$' + (val/1000).toFixed(0) + 'k', pad.l - 6, gy + 3);
+  }
+  // Buy&Hold
+  ctx.strokeStyle = '#5f6b7d'; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
+  ctx.beginPath();
+  b.forEach((val, i) => i ? ctx.lineTo(x(i), y(val)) : ctx.moveTo(x(i), y(val)));
+  ctx.stroke(); ctx.setLineDash([]);
+  // استراتژی (با گرادیان زیر خط)
+  const grad = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
+  grad.addColorStop(0, 'rgba(255,176,0,.25)');
+  grad.addColorStop(1, 'rgba(255,176,0,0)');
+  ctx.beginPath();
+  s.forEach((val, i) => i ? ctx.lineTo(x(i), y(val)) : ctx.moveTo(x(i), y(val)));
+  ctx.lineTo(x(s.length-1), h - pad.b); ctx.lineTo(x(0), h - pad.b); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.strokeStyle = '#ffb000'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  s.forEach((val, i) => i ? ctx.lineTo(x(i), y(val)) : ctx.moveTo(x(i), y(val)));
+  ctx.stroke();
+  // افسانه
+  ctx.textAlign = 'left'; ctx.font = '10px JetBrains Mono';
+  ctx.fillStyle = '#ffb000'; ctx.fillText('▬ استراتژی', pad.l + 4, pad.t + 10);
+  ctx.fillStyle = '#5f6b7d'; ctx.fillText('▬ Buy & Hold', pad.l + 84, pad.t + 10);
+}
+
+function drawSignalChart(dec) {
+  const {ctx, w, h} = setupCanvas('signalChart');
+  const pad = {l: 56, r: 14, t: 14, b: 24};
+  const p = dec.price;
+  const min = Math.min(...p), max = Math.max(...p);
+  const range = max - min || 1;
+  const x = i => pad.l + (w - pad.l - pad.r) * i / (p.length - 1);
+  const y = val => pad.t + (h - pad.t - pad.b) * (1 - (val - min) / range);
+
+  ctx.clearRect(0, 0, w, h);
+  // پس‌زمینه‌ی رژیم (نوارهای عمودی)
+  const regColor = {expansion:'rgba(22,199,132,.06)', neutral:'rgba(255,176,0,.04)', recession:'rgba(234,57,67,.07)'};
+  const bw = (w - pad.l - pad.r) / p.length;
+  dec.regime.forEach((r, i) => {
+    ctx.fillStyle = regColor[r] || 'transparent';
+    ctx.fillRect(x(i) - bw/2, pad.t, bw + 1, h - pad.t - pad.b);
+  });
+  // شبکه
+  ctx.strokeStyle = '#1a2230'; ctx.font = '10px JetBrains Mono'; ctx.fillStyle = '#5f6b7d';
+  for (let i = 0; i <= 4; i++) {
+    const gy = pad.t + (h - pad.t - pad.b) * i / 4;
+    ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(w - pad.r, gy); ctx.stroke();
+    ctx.textAlign = 'right';
+    ctx.fillText('$' + ((max - range*i/4)/1000).toFixed(1) + 'k', pad.l - 6, gy + 3);
+  }
+  // خط قیمت
+  ctx.strokeStyle = '#c9d4e3'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  p.forEach((val, i) => i ? ctx.lineTo(x(i), y(val)) : ctx.moveTo(x(i), y(val)));
+  ctx.stroke();
+  // نقاط ورود (long/short)
+  dec.direction.forEach((dir, i) => {
+    if (dir === 'flat') return;
+    if (i > 0 && dec.direction[i-1] === dir) return; // فقط نقطه‌ی شروع
+    ctx.fillStyle = dir === 'long' ? '#16c784' : '#ea3943';
+    ctx.beginPath();
+    ctx.arc(x(i), y(p[i]), 3.5, 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.textAlign = 'left'; ctx.font = '10px JetBrains Mono'; ctx.fillStyle = '#5f6b7d';
+  ctx.fillText('● ورود خرید', pad.l + 4, h - 8);
+  ctx.fillStyle = '#16c784'; ctx.beginPath(); ctx.arc(pad.l + 2, h - 11, 3, 0, Math.PI*2); ctx.fill();
+}
+
+function drawFeatures(feat) {
+  const box = document.getElementById('featBox');
+  if (!feat.features.length) {
+    box.innerHTML = '<div style="color:var(--text-dim);font-size:11px">داده‌ی اهمیت فیچر در دسترس نیست.</div>';
+    return;
+  }
+  const max = feat.features[0].importance || 1;
+  box.innerHTML = feat.features.slice(0, 14).map(f => `
+    <div class="feat-row">
+      <span class="feat-name">${f.name}</span>
+      <span class="feat-bar-bg"><span class="feat-bar" style="width:${(f.importance/max*100).toFixed(0)}%"></span></span>
+    </div>`).join('');
+}
+
+/* ============================================================
+   راه‌اندازی
+   ============================================================ */
+document.getElementById('tfBar').addEventListener('click', e => {
+  const btn = e.target.closest('.tf-btn');
+  if (!btn) return;
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (refreshTimer) clearInterval(refreshTimer);
+  loadDashboard(btn.dataset.tf);
+  refreshTimer = setInterval(() => loadDashboard(btn.dataset.tf), 60000);
+});
+
+loadDashboard('1d');
+refreshTimer = setInterval(() => loadDashboard('1d'), 60000);
+</script>
+</body>
+</html>

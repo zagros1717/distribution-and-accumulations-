@@ -1,0 +1,107 @@
+{
+  "timeframe": "1h",
+  "model_type": "lightgbm",
+  "feature_cols": [
+    "ret_1",
+    "ret_3",
+    "ret_5",
+    "ret_10",
+    "ret_20",
+    "ma_ratio_10",
+    "ma_slope_10",
+    "ma_ratio_20",
+    "ma_slope_20",
+    "ma_ratio_50",
+    "ma_slope_50",
+    "ma_ratio_100",
+    "ma_slope_100",
+    "ma_ratio_200",
+    "ma_slope_200",
+    "rsi_14",
+    "macd",
+    "macd_hist",
+    "atr_pct",
+    "vol_10",
+    "vol_20",
+    "vol_30",
+    "price_pos_14",
+    "price_pos_30",
+    "close_loc",
+    "body_ratio",
+    "upper_wick",
+    "lower_wick",
+    "vol_rel_10",
+    "vol_rel_20",
+    "vol_rel_50",
+    "obv_slope",
+    "signed_dv_5",
+    "signed_dv_20",
+    "x_spread",
+    "x_spread_z",
+    "x_count"
+  ],
+  "trained_at": "2026-05-20T18:39:22.705708+00:00",
+  "n_train": 26716,
+  "n_valid": 5715,
+  "n_test": 5728,
+  "valid_accuracy": 0.415748031496063,
+  "test_accuracy": 0.38058659217877094,
+  "class_distribution": {
+    "0": 8253,
+    "1": 9681,
+    "2": 8782
+  },
+  "horizon": 12,
+  "majority_class": 1,
+  "baseline_valid_accuracy": 0.3889763779527559,
+  "baseline_test_accuracy": 0.3442737430167598,
+  "accuracy_lift_vs_baseline": 0.03631284916201116,
+  "train_class_distribution": {
+    "count": {
+      "0": 8253,
+      "1": 9681,
+      "2": 8782
+    },
+    "pct": {
+      "0": 0.3089,
+      "1": 0.3624,
+      "2": 0.3287
+    }
+  },
+  "valid_class_distribution": {
+    "count": {
+      "0": 1699,
+      "1": 2223,
+      "2": 1793
+    },
+    "pct": {
+      "0": 0.2973,
+      "1": 0.389,
+      "2": 0.3137
+    }
+  },
+  "test_class_distribution": {
+    "count": {
+      "0": 1920,
+      "1": 1972,
+      "2": 1836
+    },
+    "pct": {
+      "0": 0.3352,
+      "1": 0.3443,
+      "2": 0.3205
+    }
+  },
+  "data_start": "2022-01-09 12:00:00+00:00",
+  "data_end": "2026-05-20 06:00:00+00:00",
+  "fit_start": "2022-01-09 12:00:00+00:00",
+  "fit_end": "2025-01-27 02:00:00+00:00",
+  "valid_start": "2025-01-27 15:00:00+00:00",
+  "valid_end": "2025-09-22 17:00:00+00:00",
+  "test_start": "2025-09-23 06:00:00+00:00",
+  "test_end": "2026-05-20 06:00:00+00:00",
+  "class_weighting": "none",
+  "label_mode": "trade_outcome",
+  "embargo_bars": 12,
+  "split_method": "chronological_purged_horizon_embargo"
+}

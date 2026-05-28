@@ -1,0 +1,28 @@
+# ============================================================
+#  BTC Swing Alpha — وابستگی‌ها
+# ============================================================
+#  نصب:  pip install -r requirements.txt
+# ============================================================
+
+# --- هسته ---
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+pyarrow>=12.0          # برای ذخیره‌ی parquet کش
+
+# --- داده ---
+ccxt>=4.2              # اتصال به Kraken / Coinbase / Binance
+yfinance>=0.2.40       # داده‌ی ماکرو (DXY, VIX, طلا ...)
+
+# --- مدل ---
+scikit-learn>=1.3      # رگرسیون لجستیک (جایگزین سبک) + ابزار
+lightgbm>=4.1          # مدل اصلی gradient boosting
+xgboost>=2.0           # فقط برای benchmark/research، نه فعال‌سازی live
+hmmlearn>=0.3          # فقط برای research؛ HMM تمام‌نمونه‌ای در production غیرفعال است
+
+# --- API ---
+fastapi>=0.110
+uvicorn[standard]>=0.27
+
+# --- اختیاری: نمودار در CLI ---
+# matplotlib>=3.7

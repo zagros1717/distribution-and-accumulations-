@@ -1,0 +1,10 @@
+numpy>=1.26
+pandas>=2.1
+pyarrow>=14
+websockets>=12
+requests>=2.31
+lightgbm>=4.1
+scikit-learn>=1.4
+optuna>=3.5
+matplotlib>=3.8
+tqdm>=4.66

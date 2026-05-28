@@ -1,0 +1,133 @@
+{
+  "name": "BotConfig",
+  "type": "object",
+  "description": "Multi-strategy bot config (v6.0). Replaces single-mode 'strict/moderate/relaxed'. Each strategy can be independently enabled/disabled and weighted by the bandit allocator.",
+  "properties": {
+    "wallet_address": {
+      "type": "string",
+      "description": "Hyperliquid account address that holds the funds"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": false
+    },
+    "selected_coins": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Universe of coins to scan"
+    },
+
+    "max_open_trades": {
+      "type": "number",
+      "description": "Hard cap on simultaneous open positions across all strategies",
+      "default": 5
+    },
+
+    "vol_target_usd_per_trade": {
+      "type": "number",
+      "description": "Daily-vol budget per trade in USD. Replaces fixed risk_per_trade %. Trade size = vol_target / (atr_pct * sqrt(holding_minutes/1440))",
+      "default": 25
+    },
+    "portfolio_vol_budget_usd": {
+      "type": "number",
+      "description": "Sum of position vols cannot exceed this. Sizes scale down if budget exceeded.",
+      "default": 100
+    },
+    "max_leverage": {
+      "type": "number",
+      "default": 5
+    },
+
+    "strategy_range_mr": {
+      "type": "object",
+      "description": "Mean-reversion in range regimes",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "min_choppiness": { "type": "number", "default": 60 },
+        "max_adx_15m": { "type": "number", "default": 22 },
+        "vwap_sigma_entry": { "type": "number", "default": 2.0 },
+        "vwap_sigma_stop": { "type": "number", "default": 3.0 },
+        "min_absorption_ratio": { "type": "number", "default": 1.4 },
+        "max_funding_skew_bps": { "type": "number", "default": 20 },
+        "tp_at_vwap": { "type": "boolean", "default": true },
+        "use_post_only": { "type": "boolean", "default": true },
+        "post_only_repost_seconds": { "type": "number", "default": 30 }
+      }
+    },
+
+    "strategy_trend_breakout": {
+      "type": "object",
+      "description": "HTF trend continuation breakout with CVD divergence confirmation",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "min_adx_15m": { "type": "number", "default": 25 },
+        "ema_stack_required": { "type": "boolean", "default": true },
+        "breakout_lookback_min": { "type": "number", "default": 5 },
+        "require_cvd_new_extreme": { "type": "boolean", "default": true },
+        "partial_tp_r": { "type": "number", "default": 1.0 },
+        "partial_tp_fraction": { "type": "number", "default": 0.5 },
+        "chandelier_atr_mult": { "type": "number", "default": 2.5 }
+      }
+    },
+
+    "strategy_liquidation_fade": {
+      "type": "object",
+      "description": "Fade forced-liquidation cascades when tape flips immediately after a sweep",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "min_liquidation_usd_5s": { "type": "number", "default": 250000 },
+        "sweep_lookback_min": { "type": "number", "default": 5 },
+        "require_aggressor_flip": { "type": "boolean", "default": true },
+        "rr_target": { "type": "number", "default": 1.5 },
+        "max_holding_minutes": { "type": "number", "default": 8 }
+      }
+    },
+
+    "cost_model": {
+      "type": "object",
+      "description": "Hyperliquid fee + slippage. Used by the cost-aware filter that requires E[PnL] > k*cost",
+      "properties": {
+        "taker_fee_bps": { "type": "number", "default": 4.5 },
+        "maker_fee_bps": { "type": "number", "default": 1.5 },
+        "slippage_base_bps": { "type": "number", "default": 5 },
+        "slippage_vol_bps": { "type": "number", "default": 15 },
+        "min_edge_multiplier": { "type": "number", "default": 2.0 }
+      }
+    },
+
+    "risk": {
+      "type": "object",
+      "properties": {
+        "session_drawdown_pct_kill": { "type": "number", "default": 5 },
+        "daily_loss_pct_kill": { "type": "number", "default": 8 },
+        "time_stop_minutes": { "type": "number", "default": 25 },
+        "time_stop_min_progress_r": { "type": "number", "default": 0.4 },
+        "correlation_window_bars": { "type": "number", "default": 60 },
+        "max_correlated_exposure_pct": { "type": "number", "default": 35 }
+      }
+    },
+
+    "allocator": {
+      "type": "object",
+      "description": "Multi-armed bandit weights across the 3 strategies. Updated from rolling Sharpe.",
+      "properties": {
+        "use_bandit": { "type": "boolean", "default": true },
+        "lookback_trades": { "type": "number", "default": 50 },
+        "exploration_eps": { "type": "number", "default": 0.10 },
+        "min_weight": { "type": "number", "default": 0.10 },
+        "kelly_cap": { "type": "number", "default": 0.25 }
+      }
+    },
+
+    "ml": {
+      "type": "object",
+      "description": "Optional gradient-boosted classifier gate. When enabled, signals must clear P(profitable) >= threshold AFTER calibration.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "model_url": { "type": "string", "description": "Public URL of the LightGBM model JSON exported by research/ml/train_classifier.py" },
+        "min_p_profitable": { "type": "number", "default": 0.55 }
+      }
+    }
+  },
+  "required": ["wallet_address"]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Liquidation",
+  "type": "object",
+  "description": "Per-event forced-liquidation record collected by tapeCollector from HL `liquidations` channel. Used by liquidation_fade strategy.",
+  "properties": {
+    "t":   { "type": "number", "description": "Unix ms" },
+    "coin":{ "type": "string" },
+    "side":{ "type": "string", "enum": ["long", "short"], "description": "Which side got liquidated" },
+    "usd": { "type": "number", "description": "Notional USD of the liquidation" },
+    "px":  { "type": "number" }
+  },
+  "required": ["t", "coin", "side", "usd"]
+}

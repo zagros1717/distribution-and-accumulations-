@@ -1,0 +1,72 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "dns-remote",
+        "address": "tls://8.8.8.8",
+        "detour": "ss",
+        "strategy": "ipv4_only"
+      }
+    ],
+    "final": "dns-remote"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "tun0",
+      "inet4_address": "172.19.0.1/30",
+      "auto_route": true,
+      "strict_route": false,
+      "sniff": true
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "shadowsocks",
+      "tag": "ss",
+      "server": "127.0.0.1",
+      "server_port": 1080,
+      "method": "2022-blake3-aes-128-gcm",
+      "password": "Y6qlViUxiHCX7xWTG9LPeA==",
+      "network": "tcp",
+      "detour": "st-out",
+      "udp_over_tcp": {
+        "enabled": true,
+        "version": 2
+      }
+    },
+    {
+      "type": "shadowtls",
+      "tag": "st-out",
+      "server": "217.160.163.244",
+      "server_port": 443,
+      "version": 3,
+      "password": "LZC1HzxtNiw3JacjuJqUInicnbqHT4Xo",
+      "tls": {
+        "enabled": true,
+        "server_name": "www.microsoft.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      }
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "ss"
+  }
+}
