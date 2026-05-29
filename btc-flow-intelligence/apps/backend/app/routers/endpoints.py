@@ -123,13 +123,21 @@ async def refresh(db: Session = Depends(get_db)) -> DashboardResponse:
 
 @router.get("/health", response_model=HealthResponse)
 def health(db: Session = Depends(get_db)) -> HealthResponse:
-    sources = {
-        a.name: ("live" if a.can_go_live else "mock") for a in all_adapters()
-    }
-    last = db.execute(
-        select(Snapshot.timestamp).order_by(Snapshot.timestamp.desc()).limit(1)
+    """Report source status from the latest stored snapshot, not credentials alone.
+
+    An adapter may have credentials configured but still fall back to mock data if
+    its live upstream request fails.  The dashboard must show what was actually
+    used in the most recent calculation.
+    """
+    snap = db.execute(
+        select(Snapshot).order_by(Snapshot.timestamp.desc()).limit(1)
     ).scalar_one_or_none()
+    sources = {adapter.name: "mock" for adapter in all_adapters()}
+    if snap is not None:
+        for signal in snap.signals:
+            if signal.is_live:
+                sources[signal.source] = "live"
     return HealthResponse(
         status="ok", environment=settings.environment, mock_mode=settings.mock_mode,
-        sources=sources, last_snapshot=last,
+        sources=sources, last_snapshot=snap.timestamp if snap is not None else None,
     )
