@@ -1,0 +1,45 @@
+name: Regenerate frontend lockfile from public npm registry
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/regenerate-public-npm-lockfile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+
+      - name: Regenerate package-lock.json using public npm registry
+        working-directory: btc-flow-intelligence/apps/frontend
+        run: |
+          rm -f package-lock.json
+          npm install --package-lock-only --ignore-scripts --registry=https://registry.npmjs.org/
+          if grep -q 'packages.applied-caas-gateway1.internal.api.openai.org' package-lock.json; then
+            echo 'Internal Artifactory URLs remain in package-lock.json' >&2
+            exit 1
+          fi
+          grep -q 'https://registry.npmjs.org/' package-lock.json
+
+      - name: Commit regenerated lockfile
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add btc-flow-intelligence/apps/frontend/package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Regenerate frontend package-lock from public npm registry'
+          git push origin HEAD:main
