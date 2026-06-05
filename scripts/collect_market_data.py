@@ -4,8 +4,8 @@
 Usage:
     python scripts/collect_market_data.py --config config/config.yaml
 
-This command reads the `market_data` section from the normal project config and
-writes JSONL partitions under data/market_metrics/.
+The command loads the normal project config and, when present, overlays
+`config/market_data.yaml` so the L3 pipeline config can stay minimal.
 """
 from __future__ import annotations
 
@@ -13,10 +13,33 @@ import argparse
 import asyncio
 import json
 from collections import Counter
+from pathlib import Path
+from typing import Any
+
+import yaml
 
 from src.market_data.collector import collect_market_data
 from src.utils.config import load_config
 from src.utils.logging import setup_logging
+
+
+def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    for key, value in overlay.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+
+def _load_market_overlay(config_path: str) -> dict[str, Any]:
+    cfg_path = Path(config_path)
+    candidates = [cfg_path.with_name("market_data.yaml"), Path("config/market_data.yaml")]
+    for candidate in candidates:
+        if candidate.exists():
+            with candidate.open("r") as f:
+                return yaml.safe_load(f) or {}
+    return {}
 
 
 def main() -> int:
@@ -25,6 +48,7 @@ def main() -> int:
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    cfg = _deep_merge(cfg, _load_market_overlay(args.config))
     setup_logging(
         level=cfg.get("logging", {}).get("level", "INFO"),
         sink=cfg.get("logging", {}).get("sink"),
