@@ -1,0 +1,48 @@
+# Cheap public market/context metrics
+# Merge this block into config/config.yaml under the top level, or load it from
+# a separate orchestration layer if you prefer to keep the L3 pipeline config
+# minimal.
+market_data:
+  enabled: true
+  fail_fast: false
+  cache:
+    enabled: true
+    dir: "./data/http_cache"
+    default_ttl_seconds: 300
+  providers:
+    binance_futures:
+      enabled: true
+      symbols: [BTCUSDT]
+      metrics: [open_interest, funding_rate, global_long_short_ratio]
+      period: 5m
+      limit: 30
+      ttl_seconds:
+        open_interest: 60
+        funding_rate: 300
+        global_long_short_ratio: 300
+    bybit:
+      enabled: true
+      symbols: [BTCUSDT]
+      category: linear
+      metrics: [open_interest, funding_rate, long_short_ratio]
+      interval: 5min
+      period: 5min
+      limit: 50
+      ttl_seconds:
+        open_interest: 300
+        funding_rate: 300
+        long_short_ratio: 300
+    coingecko:
+      enabled: true
+      coin_ids: [bitcoin]
+      vs_currency: usd
+      days: "1"
+      interval: null
+      ttl_seconds:
+        market_chart: 60
+    defillama:
+      enabled: true
+      metrics: [chain_tvl, stablecoins_mcap]
+      ttl_seconds:
+        chain_tvl: 3600
+        stablecoins_mcap: 3600
