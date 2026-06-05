@@ -44,6 +44,18 @@ def _daterange(start: datetime, end: datetime) -> List[datetime]:
     return out
 
 
+def _backtest_config_from_cfg(cfg: dict):
+    """Build BacktestConfig while preserving dataclass defaults for new knobs."""
+    from src.backtest.simulator import BacktestConfig
+    bt = cfg.get("backtest", {})
+    kwargs = {
+        name: bt[name]
+        for name in BacktestConfig.__dataclass_fields__.keys()
+        if name in bt
+    }
+    return BacktestConfig(**kwargs)
+
+
 # ----- subcommand handlers ----------------------------------------------------
 
 def cmd_record(args, cfg) -> int:
@@ -109,20 +121,12 @@ def cmd_train(args, cfg) -> int:
         out_models_dir=Path(cfg["storage"]["root"]) / "models" / "xgboost",
     )
     print(result.to_json())
-    return 0
+    return 1 if result.rejection_reasons else 0
 
 
 def cmd_backtest(args, cfg) -> int:
-    """
-    Out-of-sample backtest.
-
-    Reads `oos_predictions.parquet` produced by walk-forward training and joins
-    it onto the feature timeline. No model inference is done here — the model
-    has already produced predictions on its validation windows. This makes the
-    backtest provably out-of-sample: only fold-validation rows have entries in
-    the OOS file.
-    """
-    from src.backtest.simulator import run_oos_backtest, BacktestConfig
+    """Out-of-sample backtest using validation-window predictions only."""
+    from src.backtest.simulator import run_oos_backtest
     from src.storage.parquet_store import features_path, read_parquet_dir
     from src.utils.validation import assert_monotonic_time
 
@@ -150,33 +154,16 @@ def cmd_backtest(args, cfg) -> int:
     df = pd.concat(feats, ignore_index=True).sort_values("ts").reset_index(drop=True)
     assert_monotonic_time(df)
 
-    bt_cfg = BacktestConfig(
-        latency_ms=cfg["backtest"]["latency_ms"],
-        taker_fee_bps=cfg["backtest"]["taker_fee_bps"],
-        maker_fee_bps=cfg["backtest"]["maker_fee_bps"],
-        slippage_bps=cfg["backtest"]["slippage_bps"],
-        min_confidence=cfg["backtest"]["min_confidence"],
-        max_trades_per_day=cfg["backtest"]["max_trades_per_day"],
-        cooldown_seconds_after_trade=cfg["backtest"]["cooldown_seconds_after_trade"],
-        position_size_btc=cfg["backtest"]["position_size_btc"],
-        starting_cash_usd=cfg["backtest"]["starting_cash_usd"],
-    )
-    result = run_oos_backtest(oos_path, df, horizon_s=args.horizon, config=bt_cfg)
+    result = run_oos_backtest(oos_path, df, horizon_s=args.horizon, config=_backtest_config_from_cfg(cfg))
     print(json.dumps(result.summary, indent=2, default=str))
     return 0
 
 
 def cmd_report(args, cfg) -> int:
-    """
-    Generate a daily report.
-
-    Runs walk-forward training (which writes per-fold OOS predictions), then
-    runs the backtest using ONLY those out-of-sample predictions. The report
-    therefore reflects honest OOS performance — never in-sample.
-    """
+    """Train, run an OOS backtest, and write the report."""
     from src.models.train_xgboost import train_walk_forward
     from src.reports.daily_report import write_daily_report
-    from src.backtest.simulator import run_oos_backtest, BacktestConfig
+    from src.backtest.simulator import run_oos_backtest
     from src.storage.parquet_store import features_path, read_parquet_dir
 
     dates = _daterange(_parse_date(args.start), _parse_date(args.end))
@@ -208,11 +195,9 @@ def cmd_report(args, cfg) -> int:
                 feats.append(t.to_pandas())
         if feats:
             df = pd.concat(feats, ignore_index=True).sort_values("ts").reset_index(drop=True)
-            bt_cfg = BacktestConfig(**{k: cfg["backtest"][k]
-                                       for k in BacktestConfig.__dataclass_fields__.keys()})
             bt_result = run_oos_backtest(
                 training.oos_predictions_path, df,
-                horizon_s=args.horizon, config=bt_cfg,
+                horizon_s=args.horizon, config=_backtest_config_from_cfg(cfg),
             )
 
     write_daily_report(
@@ -225,7 +210,7 @@ def cmd_report(args, cfg) -> int:
         reject_cfg=cfg["reports"]["reject_if"],
         top_n_features=cfg["reports"]["top_n_features"],
     )
-    return 0
+    return 1 if training.rejection_reasons else 0
 
 
 def cmd_pipeline(args, cfg) -> int:
