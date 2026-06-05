@@ -1,34 +1,12 @@
 """
 XGBoost trainer with walk-forward validation.
 
-Inputs:
-  - feature parquet partition for a horizon's interval_ms (1000ms by default)
-  - label parquet partition for the chosen horizon
-
-Pipeline:
-  1. Load features and labels, join on (exchange, symbol, ts).
-  2. Drop rows where the snapshot was corrupt (is_valid=False).
-  3. Iterate walk-forward windows:
-        train: [t0, t0 + train_days)
-        val:   [t0 + train_days, t0 + train_days + val_days)
-        step:  +step_days
-     For each window:
-        - assert temporal order (no leakage)
-        - train XGBoost with early stopping on val
-        - record metrics: accuracy / per-class precision / log-loss / confusion matrix
-        - capture feature importance (gain)
-        - capture OOS predictions (val rows) for the downstream backtester
-  4. Return a list of fold results + the last-fold model. Save per-fold OOS
-     predictions to `oos_predictions.parquet` next to the model so the backtest
-     can run in true OOS mode without re-doing inference.
-
-NOTE: no feature scaling is applied. XGBoost is invariant to monotonic
-transformations of inputs, so a StandardScaler-style step would have no
-model benefit while creating a save/load consistency hazard (a scaler fit
-on train must be carried into inference; forgetting that gives silent
-garbage predictions). See src/models/evaluate.py for the inference path.
-
-Anti-leakage controls live in src/utils/validation.py.
+Reliability goals:
+  - train only on valid snapshots
+  - never use future columns as features
+  - avoid raw absolute price levels as model inputs
+  - require enough directional labels before producing signals
+  - save only validation-window predictions for OOS backtests
 """
 from __future__ import annotations
 
@@ -51,13 +29,19 @@ from src.utils.logging import logger
 from src.utils.validation import assert_train_before_val, assert_monotonic_time
 
 
-# Columns that are NOT features (they identify the row or are derived from
-# information at-or-after T's mid price).
+# Columns that are not valid model inputs. Some are identifiers, some are
+# labels/future values, and some are absolute price levels that make the model
+# learn BTC price regime instead of microstructure. Keep relative/microstructure
+# features such as spread, relative_spread, depth, imbalance, returns and flow.
 NON_FEATURE_COLS = {
-    "ts", "exchange", "symbol", "horizon_s",
-    "future_mid_price", "future_return", "label", "label_class",
-    "is_valid", "threshold_bps",
+    "ts", "exchange", "symbol", "horizon_s", "interval_ms",
+    "future_ts", "future_mid_price", "actual_horizon_s", "horizon_error_ms",
+    "future_return", "label", "label_class", "is_valid", "threshold_bps",
+    "mid_price", "best_bid", "best_ask", "last_trade_price", "vwap", "microprice",
 }
+
+MIN_DIRECTIONAL_LABELS_PER_SIDE = 20
+MIN_DIRECTIONAL_LABELS_PER_FOLD_SIDE = 5
 
 
 @dataclass
@@ -92,10 +76,8 @@ class TrainingResult:
     feature_columns: List[str]
     folds: List[FoldResult] = field(default_factory=list)
     final_model_path: Optional[str] = None
-    # Parquet file containing one row per OOS prediction (from validation
-    # windows only). The backtester reads this directly so it is guaranteed
-    # out-of-sample. See run_oos_backtest() in src.backtest.simulator.
     oos_predictions_path: Optional[str] = None
+    rejection_reasons: List[str] = field(default_factory=list)
 
     def to_json(self) -> str:
         payload = {
@@ -106,6 +88,7 @@ class TrainingResult:
             "feature_columns": self.feature_columns,
             "final_model_path": self.final_model_path,
             "oos_predictions_path": self.oos_predictions_path,
+            "rejection_reasons": self.rejection_reasons,
             "folds": [
                 {**asdict(f),
                  "train_start": f.train_start.isoformat(),
@@ -134,25 +117,45 @@ def _load_xy(
             label_frames.append(lt.to_pandas())
     if not feat_frames or not label_frames:
         return pd.DataFrame()
+
     feats = pd.concat(feat_frames, ignore_index=True).sort_values("ts")
     labels = pd.concat(label_frames, ignore_index=True).sort_values("ts")
     feats["ts"] = pd.to_datetime(feats["ts"], utc=True)
     labels["ts"] = pd.to_datetime(labels["ts"], utc=True)
-    df = feats.merge(
-        labels[["ts", "exchange", "symbol", "horizon_s", "future_return", "label", "label_class", "threshold_bps"]],
-        on=["ts", "exchange", "symbol"], how="inner",
-    )
-    # Drop invalid (corrupt-book) rows from training.
+
+    label_cols = [
+        "ts", "exchange", "symbol", "horizon_s", "future_return",
+        "label", "label_class", "threshold_bps",
+    ]
+    for optional in ("future_ts", "actual_horizon_s", "horizon_error_ms"):
+        if optional in labels.columns:
+            label_cols.append(optional)
+
+    df = feats.merge(labels[label_cols], on=["ts", "exchange", "symbol"], how="inner")
     if "is_valid" in df.columns:
         df = df[df["is_valid"]].copy()
-    df = df.dropna(subset=["mid_price"])
-    return df.reset_index(drop=True)
+    df = df.dropna(subset=["mid_price", "label_class"])
+    df = df.sort_values("ts").reset_index(drop=True)
+    return df
 
 
 def _feature_columns(df: pd.DataFrame) -> List[str]:
     cols = [c for c in df.columns if c not in NON_FEATURE_COLS]
-    # Drop string columns (exchange/symbol).
-    return [c for c in cols if pd.api.types.is_numeric_dtype(df[c]) or pd.api.types.is_bool_dtype(df[c])]
+    out = []
+    for c in cols:
+        if pd.api.types.is_numeric_dtype(df[c]) or pd.api.types.is_bool_dtype(df[c]):
+            out.append(c)
+    return out
+
+
+def _class_counts(df: pd.DataFrame) -> dict[int, int]:
+    counts = df["label_class"].astype(int).value_counts().to_dict()
+    return {0: int(counts.get(0, 0)), 1: int(counts.get(1, 0)), 2: int(counts.get(2, 0))}
+
+
+def _has_directional_coverage(df: pd.DataFrame, min_per_side: int) -> bool:
+    counts = _class_counts(df)
+    return counts[0] >= min_per_side and counts[2] >= min_per_side
 
 
 def train_walk_forward(
@@ -169,24 +172,41 @@ def train_walk_forward(
     early_stopping_rounds: int = 25,
     out_models_dir: str | Path = "data/models/xgboost",
 ) -> TrainingResult:
-    """
-    Run walk-forward training. Returns a TrainingResult with one fold per
-    sliding window. Saves the final-fold model to `out_models_dir`.
-    """
+    """Run walk-forward training and save validation-window OOS predictions."""
     df = _load_xy(data_root, exchange, symbol, dates, interval_ms, horizon_s)
     if df.empty:
         logger.warning(f"train: empty dataset for horizon={horizon_s}s")
-        return TrainingResult(horizon_s=horizon_s, interval_ms=interval_ms,
-                              exchange=exchange, symbol=symbol, feature_columns=[])
+        return TrainingResult(
+            horizon_s=horizon_s, interval_ms=interval_ms,
+            exchange=exchange, symbol=symbol, feature_columns=[],
+            rejection_reasons=["empty_dataset"],
+        )
 
     assert_monotonic_time(df, time_col="ts")
     feature_cols = _feature_columns(df)
-    logger.info(f"train: {len(df)} rows, {len(feature_cols)} features, horizon={horizon_s}s")
-
     result = TrainingResult(
         horizon_s=horizon_s, interval_ms=interval_ms,
         exchange=exchange, symbol=symbol, feature_columns=feature_cols,
     )
+
+    if not feature_cols:
+        result.rejection_reasons.append("no_feature_columns")
+        logger.warning("train: rejected, no usable feature columns")
+        return result
+
+    counts = _class_counts(df)
+    logger.info(
+        f"train: {len(df)} rows, {len(feature_cols)} features, horizon={horizon_s}s, "
+        f"class_counts={counts}"
+    )
+    if not _has_directional_coverage(df, MIN_DIRECTIONAL_LABELS_PER_SIDE):
+        reason = (
+            f"insufficient_directional_labels: short={counts[0]} long={counts[2]} "
+            f"min_per_side={MIN_DIRECTIONAL_LABELS_PER_SIDE}"
+        )
+        result.rejection_reasons.append(reason)
+        logger.warning(f"train: rejected, {reason}")
+        return result
 
     one_day = pd.Timedelta(days=1)
     start = df["ts"].min().floor("D")
@@ -205,20 +225,27 @@ def train_walk_forward(
             cur = cur + step_days * one_day
             continue
 
+        train_counts = _class_counts(train_df)
+        val_counts = _class_counts(val_df)
+        if not _has_directional_coverage(train_df, MIN_DIRECTIONAL_LABELS_PER_FOLD_SIDE):
+            logger.warning(f"fold skipped: train directional class coverage too low {train_counts}")
+            cur = cur + step_days * one_day
+            continue
+        if val_counts[0] == 0 and val_counts[2] == 0:
+            logger.warning(f"fold skipped: validation has no directional labels {val_counts}")
+            cur = cur + step_days * one_day
+            continue
+
         assert_train_before_val(train_df, val_df, time_col="ts")
 
-        # No StandardScaler: XGBoost is invariant to monotonic feature
-        # transformations. Scaling would require we save+load the scaler at
-        # inference time, which is one more thing that can silently drift.
-        X_train = train_df[feature_cols].astype(float).fillna(0.0).values
-        X_val = val_df[feature_cols].astype(float).fillna(0.0).values
+        X_train = train_df[feature_cols].astype(float).replace([np.inf, -np.inf], np.nan).fillna(0.0).values
+        X_val = val_df[feature_cols].astype(float).replace([np.inf, -np.inf], np.nan).fillna(0.0).values
         y_train = train_df["label_class"].astype(int).values
         y_val = val_df["label_class"].astype(int).values
 
         dtrain = xgb.DMatrix(X_train, label=y_train, feature_names=feature_cols)
         dval = xgb.DMatrix(X_val, label=y_val, feature_names=feature_cols)
 
-        # Adapt sklearn-style params to xgb.train API.
         params = {
             "objective": xgb_params.get("objective", "multi:softprob"),
             "num_class": xgb_params.get("num_class", 3),
@@ -244,7 +271,6 @@ def train_walk_forward(
         proba = booster.predict(dval)
         pred = np.argmax(proba, axis=1)
 
-        # Capture per-row OOS predictions for downstream backtesting.
         oos_rows.append(pd.DataFrame({
             "ts": val_df["ts"].values,
             "fold_index": fold_idx,
@@ -257,7 +283,6 @@ def train_walk_forward(
             "y_true_class": y_val,
         }))
 
-        # Per-class precision/recall: class 2 = +1 (long), class 0 = -1 (short)
         acc = float(accuracy_score(y_val, pred))
         ll = float(log_loss(y_val, proba, labels=[0, 1, 2]))
         prec_long = float(precision_score(y_val, pred, labels=[2], average="macro", zero_division=0))
@@ -268,7 +293,6 @@ def train_walk_forward(
         f1_short = float(f1_score(y_val, pred, labels=[0], average="macro", zero_division=0))
         cm = confusion_matrix(y_val, pred, labels=[0, 1, 2]).tolist()
         imp = booster.get_score(importance_type="gain")
-        # Pad missing features with 0.
         imp_full = {c: float(imp.get(c, 0.0)) for c in feature_cols}
 
         result.folds.append(FoldResult(
@@ -287,34 +311,32 @@ def train_walk_forward(
         ))
         logger.info(
             f"fold {fold_idx}: train={len(train_df)} val={len(val_df)} "
-            f"acc={acc:.3f} ll={ll:.3f} "
-            f"p_long={prec_long:.3f} p_short={prec_short:.3f}"
+            f"acc={acc:.3f} ll={ll:.3f} p_long={prec_long:.3f} p_short={prec_short:.3f}"
         )
         last_booster = booster
         fold_idx += 1
         cur = cur + step_days * one_day
 
-    if last_booster is not None:
-        out_dir = Path(out_models_dir) / f"horizon_{horizon_s}s"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        model_path = out_dir / "model.ubj"
-        last_booster.save_model(str(model_path))
-        result.final_model_path = str(model_path)
+    if last_booster is None:
+        result.rejection_reasons.append("no_valid_walk_forward_folds")
+        logger.warning("train: rejected, no valid walk-forward folds")
+        return result
 
-        # Save per-fold OOS predictions. The backtester uses these as the
-        # source-of-truth out-of-sample stream — no in-sample contamination
-        # is possible because every row here came from a fold's validation
-        # window, not its training window.
-        if oos_rows:
-            oos_df = pd.concat(oos_rows, ignore_index=True).sort_values("ts").reset_index(drop=True)
-            oos_path = out_dir / "oos_predictions.parquet"
-            oos_df.to_parquet(oos_path, index=False)
-            result.oos_predictions_path = str(oos_path)
-            logger.info(f"train: saved {len(oos_df)} OOS predictions -> {oos_path}")
+    out_dir = Path(out_models_dir) / f"horizon_{horizon_s}s"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    model_path = out_dir / "model.ubj"
+    last_booster.save_model(str(model_path))
+    result.final_model_path = str(model_path)
 
-        # Also save the feature list and a metadata file.
-        with open(out_dir / "metadata.json", "w") as f:
-            f.write(result.to_json())
-        logger.info(f"train: saved final model -> {model_path}")
+    if oos_rows:
+        oos_df = pd.concat(oos_rows, ignore_index=True).sort_values("ts").reset_index(drop=True)
+        oos_df = oos_df.drop_duplicates(subset=["ts"], keep="last")
+        oos_path = out_dir / "oos_predictions.parquet"
+        oos_df.to_parquet(oos_path, index=False)
+        result.oos_predictions_path = str(oos_path)
+        logger.info(f"train: saved {len(oos_df)} OOS predictions -> {oos_path}")
 
+    with open(out_dir / "metadata.json", "w") as f:
+        f.write(result.to_json())
+    logger.info(f"train: saved final model -> {model_path}")
     return result
