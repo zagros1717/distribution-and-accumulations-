@@ -1,26 +1,13 @@
 """
 Offline backtest simulator.
 
-Conservative event-driven simulator. Given a stream of model predictions
-aligned with the feature/snapshot timeline, simulate trades:
-
-  - Signal at time T: if confidence < min_confidence -> skip
-  - Entry price = mid_price at T + latency_ms (closest snapshot >= T+latency)
-    plus half-spread on the appropriate side (taker liquidity)
-    plus slippage_bps
-  - Exit at T + horizon_s using the same logic (we're closing the position)
-  - Fees applied to both entry and exit notional
-  - Cooldown: after a closed trade we wait `cooldown_seconds_after_trade`
-  - Hard cap of `max_trades_per_day`
-
-Output: per-trade DataFrame plus a per-day PnL summary. This is honest
-research simulation, not a paper-trading engine.
+Conservative event-driven simulator. It uses only OOS predictions from the
+walk-forward trainer and refuses to trade across stale/gappy snapshots.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -37,6 +24,10 @@ class BacktestConfig:
     cooldown_seconds_after_trade: float = 2.0
     position_size_btc: float = 0.01
     starting_cash_usd: float = 100_000.0
+    # Max allowed delay between desired execution time and the next available
+    # snapshot. None means infer from the median feature cadence. Trades that
+    # need stale snapshots are skipped rather than producing optimistic fills.
+    max_snapshot_delay_ms: int | None = None
 
 
 @dataclass
@@ -63,9 +54,16 @@ class BacktestResult:
     summary: dict = field(default_factory=dict)
 
 
-def _half_spread_dollars(row: pd.Series) -> float:
-    sp = row.get("spread")
-    return float(sp) / 2.0 if pd.notna(sp) else 0.0
+def _infer_snapshot_tolerance(df: pd.DataFrame, config: BacktestConfig) -> pd.Timedelta:
+    if config.max_snapshot_delay_ms is not None:
+        return pd.Timedelta(milliseconds=max(int(config.max_snapshot_delay_ms), 1))
+    if len(df) < 2:
+        return pd.Timedelta(milliseconds=1000)
+    diffs = df["ts"].sort_values().diff().dropna()
+    if diffs.empty:
+        return pd.Timedelta(milliseconds=1000)
+    # Twice the median cadence tolerates normal jitter but rejects real gaps.
+    return max(diffs.median() * 2, pd.Timedelta(milliseconds=1))
 
 
 def run_backtest(
@@ -78,8 +76,8 @@ def run_backtest(
     """
     Simulate trades from predictions aligned 1:1 with `features_df` rows.
 
-    `predictions`  : array of -1/0/+1
-    `confidences`  : max-class probability per row, used for min_confidence filter
+    `predictions`: array of -1/0/+1
+    `confidences`: max-class probability per row
     """
     assert len(features_df) == len(predictions) == len(confidences), \
         "features_df, predictions, confidences must align"
@@ -95,25 +93,28 @@ def run_backtest(
     latency_td = pd.Timedelta(milliseconds=config.latency_ms)
     horizon_td = pd.Timedelta(seconds=horizon_s)
     cooldown_td = pd.Timedelta(seconds=config.cooldown_seconds_after_trade)
+    max_delay = _infer_snapshot_tolerance(df, config)
 
-    # Precompute a fast lookup from ts -> row index, since we need future rows.
-    ts_values = df["ts"].values  # numpy datetime64[ns]
-    mid_values = df["mid_price"].values
-    spread_values = df["spread"].values
+    ts_values = df["ts"].values
 
-    def find_next_idx(target_ts: np.datetime64) -> int:
-        """Index of the first row whose ts >= target_ts. -1 if none."""
-        idx = np.searchsorted(ts_values, target_ts, side="left")
+    def find_next_idx(target_ts: pd.Timestamp) -> int:
+        idx = np.searchsorted(ts_values, np.datetime64(target_ts), side="left")
         return int(idx) if idx < len(ts_values) else -1
 
+    def is_fresh(actual_ts: pd.Timestamp, target_ts: pd.Timestamp) -> bool:
+        return actual_ts >= target_ts and (actual_ts - target_ts) <= max_delay
+
     trades: List[Trade] = []
-    next_allowed_ts = df["ts"].iloc[0]
+    next_allowed_ts = df["ts"].iloc[0] if not df.empty else pd.Timestamp.utcnow()
     trades_today: dict[pd.Timestamp, int] = {}
+    skipped_stale_entry = 0
+    skipped_stale_exit = 0
+    skipped_invalid_execution = 0
 
     fee_rate = config.taker_fee_bps / 10000.0
     slip_rate = config.slippage_bps / 10000.0
 
-    for i, row in df.iterrows():
+    for _, row in df.iterrows():
         pred = int(row["pred"])
         if pred == 0:
             continue
@@ -127,28 +128,39 @@ def run_backtest(
         if trades_today.get(day_key, 0) >= config.max_trades_per_day:
             continue
 
-        # Entry: snapshot at signal + latency
-        entry_idx = find_next_idx(np.datetime64(row["ts"] + latency_td))
+        entry_target = row["ts"] + latency_td
+        entry_idx = find_next_idx(entry_target)
         if entry_idx < 0:
+            skipped_stale_entry += 1
             continue
         entry_row = df.iloc[entry_idx]
+        if not is_fresh(entry_row["ts"], entry_target):
+            skipped_stale_entry += 1
+            continue
+        if not bool(entry_row.get("is_valid", True)):
+            skipped_invalid_execution += 1
+            continue
+
         entry_mid = float(entry_row["mid_price"])
         entry_spread = float(entry_row["spread"]) if pd.notna(entry_row["spread"]) else 0.0
-        # Taker buys at ask, sells at bid -> pay half-spread on entry.
         entry_price = entry_mid + (pred * entry_spread / 2.0)
-        # Slippage extra cost on the side of trade.
         entry_price *= (1.0 + pred * slip_rate)
 
-        # Exit: snapshot at entry_ts + horizon
-        exit_target_ts = entry_row["ts"] + horizon_td
-        exit_idx = find_next_idx(np.datetime64(exit_target_ts))
+        exit_target = entry_row["ts"] + horizon_td
+        exit_idx = find_next_idx(exit_target)
         if exit_idx < 0 or exit_idx <= entry_idx:
+            skipped_stale_exit += 1
             continue
         exit_row = df.iloc[exit_idx]
+        if not is_fresh(exit_row["ts"], exit_target):
+            skipped_stale_exit += 1
+            continue
+        if not bool(exit_row.get("is_valid", True)):
+            skipped_invalid_execution += 1
+            continue
+
         exit_mid = float(exit_row["mid_price"])
         exit_spread = float(exit_row["spread"]) if pd.notna(exit_row["spread"]) else 0.0
-        # When closing a long, we sell at bid (-half spread). When closing a
-        # short, we buy at ask (+half spread). Always against us.
         exit_price = exit_mid - (pred * exit_spread / 2.0)
         exit_price *= (1.0 - pred * slip_rate)
 
@@ -162,17 +174,14 @@ def run_backtest(
 
         trades.append(Trade(
             ts_signal=row["ts"], ts_entry=entry_row["ts"], ts_exit=exit_row["ts"],
-            direction=pred,
-            entry_price=entry_price, exit_price=exit_price,
-            size_btc=size,
-            pnl_gross_usd=gross, pnl_net_usd=net, fees_usd=fees,
-            return_bps=ret_bps, confidence=float(row["conf"]),
+            direction=pred, entry_price=entry_price, exit_price=exit_price,
+            size_btc=size, pnl_gross_usd=gross, pnl_net_usd=net,
+            fees_usd=fees, return_bps=ret_bps, confidence=float(row["conf"]),
         ))
         trades_today[day_key] = trades_today.get(day_key, 0) + 1
         next_allowed_ts = exit_row["ts"] + cooldown_td
 
     trades_df = pd.DataFrame([asdict(t) for t in trades])
-
     summary = {
         "n_trades": len(trades),
         "n_long": int(sum(1 for t in trades if t.direction == 1)),
@@ -182,6 +191,10 @@ def run_backtest(
         "fees_usd": float(sum(t.fees_usd for t in trades)),
         "win_rate": float(np.mean([t.pnl_net_usd > 0 for t in trades])) if trades else 0.0,
         "avg_return_bps": float(np.mean([t.return_bps for t in trades])) if trades else 0.0,
+        "max_snapshot_delay_ms": int(max_delay / pd.Timedelta(milliseconds=1)),
+        "skipped_stale_entry": skipped_stale_entry,
+        "skipped_stale_exit": skipped_stale_exit,
+        "skipped_invalid_execution": skipped_invalid_execution,
     }
 
     daily_pnl = pd.DataFrame()
@@ -195,16 +208,14 @@ def run_backtest(
             avg_bps=("return_bps", "mean"),
         ).reset_index()
 
-        # Drawdown and Sharpe (per-trade)
         cum = trades_df["pnl_net_usd"].cumsum()
         max_dd = float((cum.cummax() - cum).max()) if len(cum) else 0.0
         equity = config.starting_cash_usd + cum
-        max_dd_bps = float(max_dd / config.starting_cash_usd * 10000.0)
         returns = trades_df["pnl_net_usd"] / config.starting_cash_usd
         sharpe = float(returns.mean() / returns.std() * np.sqrt(252 * 86400 / max(horizon_s, 1))) \
                   if returns.std() > 0 else 0.0
         summary["max_drawdown_usd"] = max_dd
-        summary["max_drawdown_bps"] = max_dd_bps
+        summary["max_drawdown_bps"] = float(max_dd / config.starting_cash_usd * 10000.0)
         summary["sharpe_approx"] = sharpe
         summary["final_equity_usd"] = float(equity.iloc[-1]) if len(equity) else config.starting_cash_usd
 
@@ -217,42 +228,28 @@ def run_oos_backtest(
     horizon_s: int,
     config: BacktestConfig,
 ) -> BacktestResult:
-    """
-    Run a backtest using ONLY out-of-sample predictions produced by the
-    walk-forward trainer (see TrainingResult.oos_predictions_path).
-
-    `features_df` carries the timeline (mid, spread, is_valid). We inner-join
-    on ts so the only rows considered are the ones the model produced an OOS
-    prediction for. Rows in features_df that fall inside a fold's *training*
-    window are simply not present in the OOS file, so they cannot leak into
-    the simulation.
-    """
+    """Run a backtest using only walk-forward validation-window predictions."""
     oos = pd.read_parquet(str(oos_predictions_path))
     oos["ts"] = pd.to_datetime(oos["ts"], utc=True)
+    oos = oos.sort_values("ts").drop_duplicates(subset=["ts"], keep="last")
 
     df = features_df.copy()
     df["ts"] = pd.to_datetime(df["ts"], utc=True)
-    df = df.sort_values("ts").reset_index(drop=True)
+    df = df.sort_values("ts").drop_duplicates(subset=["ts"], keep="last").reset_index(drop=True)
 
-    # Inner join — drops in-sample rows that have no OOS prediction.
     merged = df.merge(
         oos[["ts", "prob_short", "prob_flat", "prob_long"]],
         on="ts", how="inner",
     ).sort_values("ts").reset_index(drop=True)
 
     if merged.empty:
-        return BacktestResult(config=config, trades=[],
-                              daily_pnl=pd.DataFrame(), summary={"n_trades": 0})
+        return BacktestResult(config=config, trades=[], daily_pnl=pd.DataFrame(), summary={"n_trades": 0})
 
     proba = merged[["prob_short", "prob_flat", "prob_long"]].values
-    pred = np.argmax(proba, axis=1) - 1  # -1/0/+1
+    pred = np.argmax(proba, axis=1) - 1
     conf = proba.max(axis=1)
     if config.min_confidence > 0:
         pred = np.where(conf >= config.min_confidence, pred, 0)
 
-    feat_cols = [c for c in merged.columns
-                 if c not in ("prob_short", "prob_flat", "prob_long")]
-    return run_backtest(
-        merged[feat_cols], pred, conf,
-        horizon_s=horizon_s, config=config,
-    )
+    feat_cols = [c for c in merged.columns if c not in ("prob_short", "prob_flat", "prob_long")]
+    return run_backtest(merged[feat_cols], pred, conf, horizon_s=horizon_s, config=config)
