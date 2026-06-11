@@ -2,8 +2,12 @@
 Safety enforcement.
 
 This module is imported at the top of every entrypoint. If anyone tries to
-flip `safety.execution_enabled` to true, or tries to wire in a private API
-client, the program refuses to start. There is no command-line override.
+flip `safety.execution_enabled` to true, or tries to wire in a private
+exchange/trading API client, the program refuses to start. There is no
+command-line override.
+
+Read-only research APIs such as Arkham are allowed as data sources, but they
+must never be able to trade, place orders, move funds, or withdraw assets.
 
 Trading capability is OUT OF SCOPE for this project. This is research only.
 """
@@ -26,7 +30,7 @@ def assert_research_mode(config: Mapping) -> None:
         )
     if safety.get("allow_private_api", False):
         raise ExecutionDisabledError(
-            "allow_private_api=true is not permitted. No private API keys."
+            "allow_private_api=true is not permitted. No private exchange/trading API keys."
         )
     if safety.get("allow_withdrawals", False):
         raise ExecutionDisabledError(
