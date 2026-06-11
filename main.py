@@ -3,14 +3,15 @@ Main entrypoint.
 
 Subcommands:
 
-  record       Live recorder. Primary Bitfinex, fallback Coinbase. No execution.
-  replay       Reconstruct order book from normalized parquet, emit snapshots.
-  features     Build feature parquet for a (date, interval_ms).
-  labels       Build labels for a (date, horizon_s).
-  train        Walk-forward XGBoost training across a date range.
-  backtest     Run offline simulator using a trained model.
-  report       Produce the daily Markdown report.
-  pipeline     Run replay + features + labels + train + backtest + report end-to-end.
+  record        Live recorder. Primary Bitfinex, fallback Coinbase. No execution.
+  replay        Reconstruct order book from normalized parquet, emit snapshots.
+  features      Build feature parquet for a (date, interval_ms).
+  labels        Build labels for a (date, horizon_s).
+  train         Walk-forward XGBoost training across a date range.
+  backtest      Run offline simulator using a trained model.
+  report        Produce the daily Markdown report.
+  pipeline      Run replay + features + labels + train + report end-to-end.
+  onchain-flow  Pull Arkham BTC transfers and report large exchange inflow/outflow.
 
 All commands first call assert_research_mode() via load_config().
 """
@@ -227,6 +228,20 @@ def cmd_pipeline(args, cfg) -> int:
     return rc
 
 
+def cmd_onchain_flow(args, cfg) -> int:
+    """Pull read-only Arkham BTC transfer data and write an exchange-flow report."""
+    from src.onchain.arkham_flow import run_arkham_flow_report
+
+    summary = run_arkham_flow_report(
+        cfg=cfg,
+        start=args.start,
+        end=args.end,
+        dry_run=args.dry_run,
+    )
+    print(json.dumps(summary.as_dict(), indent=2))
+    return 0
+
+
 # ----- arg parsing ------------------------------------------------------------
 
 def main(argv=None) -> int:
@@ -259,6 +274,14 @@ def main(argv=None) -> int:
     pl = sub.add_parser("pipeline", parents=[common], help="replay -> features -> labels -> train -> report")
     pl.add_argument("--horizon", type=int, required=True)
 
+    flow = sub.add_parser(
+        "onchain-flow",
+        help="Read Arkham BTC transfers and report large-wallet exchange inflow/outflow",
+    )
+    flow.add_argument("--start", default=None, help="UTC start: YYYY-MM-DD or ISO timestamp. Default: now-24h")
+    flow.add_argument("--end", default=None, help="UTC end: YYYY-MM-DD or ISO timestamp. Default: now")
+    flow.add_argument("--dry-run", action="store_true", help="Write an empty report without calling Arkham")
+
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
     setup_logging(level=cfg["logging"]["level"],
@@ -274,6 +297,7 @@ def main(argv=None) -> int:
         "backtest": cmd_backtest,
         "report": cmd_report,
         "pipeline": cmd_pipeline,
+        "onchain-flow": cmd_onchain_flow,
     }
     return dispatch[args.cmd](args, cfg)
 
