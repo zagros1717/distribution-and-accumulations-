@@ -11,7 +11,7 @@
 # -----------------------------------------------------------------------------
 safety:
   execution_enabled: false       # MUST be false. Code raises if true.
-  allow_private_api: false       # No private exchange API access. Ever.
+  allow_private_api: false       # No private exchange/trading API access. Ever.
   allow_withdrawals: false       # Defense in depth.
 
 # -----------------------------------------------------------------------------
@@ -126,6 +126,59 @@ backtest:
   cooldown_seconds_after_trade: 2
   position_size_btc: 0.01        # tiny notional — simulation only
   starting_cash_usd: 100000.0
+
+# -----------------------------------------------------------------------------
+# Read-only Arkham on-chain flow monitor
+# -----------------------------------------------------------------------------
+onchain:
+  arkham:
+    # Store the actual key in an environment variable or GitHub Actions secret.
+    # Do not commit it to the repository.
+    api_key_env: ARKHAM_API_KEY
+    base_url: "https://api.arkm.com"
+    transfers_path: "/transfers"
+    auth_header: "API-Key"
+
+    # BTC-only whale/exchange-flow monitor.
+    chain: bitcoin
+    token_symbols: [btc, bitcoin]
+    min_transfer_btc: 100.0
+    strong_net_btc: 500.0
+    strong_net_share: 0.25
+
+    # Endpoint compatibility knobs. If Arkham changes parameter names, change
+    # them here without touching code.
+    start_time_param: startTime
+    end_time_param: endTime
+    limit_param: limit
+    pagination_cursor_param: cursor
+    page_limit: 100
+    max_pages: 10
+    request_timeout_seconds: 30
+    sleep_between_pages_seconds: 0.25
+    extra_query_params: {}
+
+    exchange_names:
+      - binance
+      - coinbase
+      - coinbase prime
+      - coinbase custody
+      - kraken
+      - okx
+      - bybit
+      - bitfinex
+      - bitstamp
+      - gemini
+      - kucoin
+      - gate.io
+      - crypto.com
+      - mexc
+      - upbit
+      - bitget
+      - htx
+      - huobi
+
+    output_dir: "./data/reports/onchain"
 
 # -----------------------------------------------------------------------------
 # Reports
